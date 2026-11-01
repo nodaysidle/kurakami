@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kuraoke Kami</title>
+<link rel="stylesheet" href="/static/style.css">
+<script>/*BOOT*/</script>
+</head>
+<body>
+<!-- ============ STAGE (TV / display window) ============ -->
+<div id="stage" hidden>
+  <video id="vid" muted playsinline></video>
+  <canvas id="cdg" width="300" height="216"></canvas>
+  <div id="lyrics"><div class="ln" id="l0"></div><div class="ln" id="l1"></div></div>
+  <div id="dots"></div>
+  <div id="intro">
+    <div class="num" id="i-num"></div>
+    <h1 id="i-title"></h1>
+    <h2 id="i-artist"></h2>
+    <div class="up" id="i-next"></div>
+  </div>
+  <div id="idle">
+    <h1>KURAOKE&nbsp;KAMI</h1>
+    <p data-i18n="idle_hint"></p>
+    <div id="idle-remote"><img id="qr" alt=""><div><span data-i18n="remote_use"></span><code id="idle-url"></code></div></div>
+  </div>
+  <div id="hud">
+    <div id="chips"></div>
+    <div id="nextbar"></div>
+  </div>
+  <div id="entry"></div>
+  <div id="error"></div>
+</div>
+
+<!-- ============ PANEL APP (remote page + menu on the display) ============ -->
+<div id="app">
+  <header>
+    <div id="np"><b id="np-t"></b><span id="np-a"></span></div>
+    <button class="x" id="close" data-i18n-title="close">✕</button>
+  </header>
+  <main>
+    <section id="p-sing">
+      <div class="bar"><div id="bar-fill"></div></div>
+      <div class="row big">
+        <button data-a="restart" data-i18n-title="restart">⟲</button>
+        <button data-a="pause" id="b-pause">⏯</button>
+        <button data-a="next" data-i18n-title="next">⏭</button>
+      </div>
+      <div class="ctl">
+        <label data-i18n="key"></label>
+        <button data-a="key" data-d="-1">−</button><output id="o-key"></output><button data-a="key" data-d="1">+</button><button data-a="key" data-v="0" class="sm">0</button>
+        <label data-i18n="tempo"></label>
+        <button data-a="tempo" data-d="-0.05">−</button><output id="o-tempo"></output><button data-a="tempo" data-d="0.05">+</button><button data-a="tempo" data-v="1" class="sm">100</button>
+        <label data-i18n="volume"></label>
+        <button data-a="volume" data-d="-5">−</button><output id="o-vol"></output><button data-a="volume" data-d="5">+</button><span></span>
+      </div>
+      <div class="row">
+        <button class="tog" data-a="melody" id="b-melody"></button>
+        <button class="tog" data-a="chorus" id="b-chorus"></button>
+        <button data-a="fullscreen" data-i18n="fullscreen"></button>
+      </div>
+      <form id="numform" class="row"><input id="numin" inputmode="numeric" pattern="[0-9]*" data-i18n-ph="song_number"><button data-i18n="reserve"></button></form>
+    </section>
+
+    <section id="p-songs" hidden>
+      <input id="q" type="search" data-i18n-ph="search" autocomplete="off">
+      <div id="facets"></div>
+      <ul id="songs"></ul>
+      <button id="more" hidden data-i18n="more"></button>
+    </section>
+
+    <section id="p-queue" hidden>
+      <ol id="queue"></ol>
+      <button data-a="clear" data-i18n="clear_queue"></button>
+    </section>
+
+    <section id="p-set" hidden>
+      <h3 data-i18n="s_general"></h3>
+      <label class="f"><span data-i18n="language"></span>
+        <select id="s-lang"><option value="en">English</option><option value="tl">Tagalog</option></select></label>
+      <label class="f"><span data-i18n="dedupe"></span><input type="checkbox" id="s-dedupe"></label>
+      <label class="f"><span data-i18n="intro_secs"></span><input type="number" id="s-intro" min="0" max="30"></label>
+      <label class="f"><span data-i18n="soundfont"></span><input id="s-sf" placeholder="/usr/share/soundfonts/FluidR3_GM.sf2"></label>
+
+      <h3 data-i18n="s_filters"></h3>
+      <div id="s-langs" class="chips"></div>
+      <div id="s-countries" class="chips"></div>
+
+      <h3 data-i18n="s_folders"></h3>
+      <ul id="folders"></ul>
+      <form id="addfolder" class="grid">
+        <input name="path" required data-i18n-ph="folder_path">
+        <input name="start" type="number" min="1" value="1" data-i18n-ph="start_no" title="start">
+        <input name="lang" data-i18n-ph="lang_code" size="6">
+        <input name="country" data-i18n-ph="country_code" size="6">
+        <button data-i18n="add_folder"></button>
+      </form>
+      <div class="row">
+        <button data-a="scan" data-rebuild="0" data-i18n="rescan"></button>
+        <button data-a="scan" data-rebuild="1" class="warn" data-i18n="rebuild"></button>
+      </div>
+      <p id="scanmsg" class="muted"></p>
+
+      <h3 data-i18n="s_remote"></h3>
+      <label class="f"><span data-i18n="remote_on"></span><input type="checkbox" id="s-remote"></label>
+      <p class="muted" data-i18n="remote_note"></p>
+      <code id="remote-url"></code>
+      <h3 data-i18n="s_keys"></h3>
+      <pre id="keys"></pre>
+    </section>
+  </main>
+  <nav>
+    <button data-tab="sing" data-i18n="t_sing"></button>
+    <button data-tab="songs" data-i18n="t_songs"></button>
+    <button data-tab="queue" id="t-queue"></button>
+    <button data-tab="set" data-i18n="t_set"></button>
+  </nav>
+</div>
+<div id="toast"></div>
+<script src="/static/i18n.js"></script>
+<script src="/static/lyricpage.js"></script>
+<script src="/static/cdg.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

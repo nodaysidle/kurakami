@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Kuraoke Kami
+Comment=Offline home karaoke machine
+Exec=kuraoke-kami
+Icon=kuraoke-kami
+Terminal=false
+Categories=AudioVideo;Audio;Player;

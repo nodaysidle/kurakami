@@ -1,0 +1,5 @@
+#!/bin/bash
+# Starts the karaoke server (if not already running) and opens the display window.
+#   kuraoke-kami            server + display window
+#   kuraoke-kami --no-ui    server only (e.g. headless box driven from a phone)
+cd "$(dirname "$(readlink -f "$0")")/.." && exec python3 -u -m kuraoke_kami "$@"

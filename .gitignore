@@ -1,0 +1,9 @@
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+# your own songs and lyrics stay on your machine (copyrighted)
+/songs/*
+!/songs/.gitkeep
+/.ignore
+__pycache__/
+*.pyc
