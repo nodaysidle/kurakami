@@ -133,6 +133,67 @@ Options can be combined: `karaokeimp ~/Downloads/karaoke --copy --dry-run`.
   `.mpg` and `.avi` are not supported because the app cannot show them. Convert first:
   `ffmpeg -i in.mpg -c:v libx264 -pix_fmt yuv420p -c:a aac out.mp4`
 
+## If the lyrics fail: what to do
+
+After an import, look at the line for your song. It says one of three things:
+
+| You see | What it means | What to do |
+|---------|---------------|------------|
+| `lyrics saved (...)` | done | nothing |
+| `lyrics service unavailable` | the lyrics site was busy (common) | **Step 1** |
+| `lyrics no synced match` | no timed lyrics were found for that name and length | **Step 2**, then **Step 3** |
+
+A song without lyrics still plays and can be sung. You can fix the lyrics any time later; nothing is lost.
+
+**Step 1: busy site. Wait and try again.** Wait a few minutes, then run (from any folder):
+
+```fish
+karaokelrc
+```
+
+It only tries songs that have no lyrics yet. Run it again later if it still says `service unavailable`.
+
+**Step 2: check the name. Most "no match" cases are a name problem.** Look at the song's name in the import list
+(or run `ls ~/dev/nodaysidle/kuraoke-kami/songs`). The name must be exactly `Artist - Title.mp3`. Extra words such as
+`Official Video`, `HD`, `Lyrics`, `Audio`, `feat. ...` or a year make the search fail. Fix it with `mv`, then fetch again:
+
+```fish
+cd ~/dev/nodaysidle/kuraoke-kami/songs
+mv "Marracash - Stupido Official Video.mp3" "Marracash - Stupido.mp3"
+karaokelrc
+```
+
+(Replace the two names with yours. Keep the quotes. Use the real artist and title spelling.)
+A renamed song gets a **new number**. In the app press **S → Scan (keep numbers)** and look the song up by title in the song book (`/`).
+If the first word before ` - ` is not the artist (for example `Title - Artist.mp3`), swap them in the same way.
+
+**Step 3: still no match? Add the lyrics file yourself.** Timed lyrics are `.lrc` files.
+
+1. Search the web for `<artist> <title> lrc` (or search on [lrclib.net](https://lrclib.net)) and download the `.lrc` file.
+2. Put it next to the song with **exactly the same name**, only the ending is `.lrc`. For example:
+
+```fish
+mv ~/Downloads/stupido.lrc ~/dev/nodaysidle/kuraoke-kami/songs/"Marracash - Stupido.lrc"
+```
+
+3. Sing the song. The lyrics are read when the song starts, so you do not have to rescan.
+
+Check it worked: the song's lyrics should appear on the TV window while it plays. If they do not, run `karaokedoctor`.
+
+**Lyrics start too early or too late.** The file is for another version of the song (live, remix, radio edit). Delete it and
+use another one from Step 3 (do not run `karaokelrc` again for this, it would fetch the same file):
+
+```fish
+rm ~/dev/nodaysidle/kuraoke-kami/songs/"Marracash - Stupido.lrc"
+```
+
+**You only found plain lyrics (words without times).** The app cannot use them: karaoke needs the time of each line. Look for the
+`.lrc` version, or sing that song without lyrics on screen. (A tool to time plain lyrics yourself is not built yet.)
+
+**Skip lyrics completely.** Import with `karaokeimp --no-lyrics`. The songs just play.
+
+---
+
 ## Lyrics, in detail
 
 Lyrics come from [lrclib.net](https://lrclib.net), a free community database of **timed** lyrics. Only the artist,
