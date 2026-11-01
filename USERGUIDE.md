@@ -176,6 +176,20 @@ Close the karaoke window like any other window (your normal Hyprland close key),
 Both stop everything: the window, the music and the phone remote. Opening it again from the menu starts it fresh.
 (If you use the phone only, started with `kuraoke-kami --no-ui`, it keeps running until you press Quit.)
 
+## When something goes wrong
+
+Everything is logged, so nothing needs to be reproduced. Run:
+
+```fish
+karaokedoctor
+```
+
+It checks the tools (mpv, ffmpeg, fluidsynth), the SoundFont, your folders, the song book, the firewall and the audio server,
+and shows the **last errors from the log** with the file and line. The same report is in the app: **S → Diagnostics → Run checks**.
+Errors inside the app window are written to the same log. To see the log itself: `kuraoke-kami --logs`
+(file: `~/.local/state/kuraoke-kami/kuraoke.log`, mpv's own messages in `mpv.log` next to it).
+If you ask for help, paste the output of `karaokedoctor`.
+
 ## Problems
 
 | You see | Do this |

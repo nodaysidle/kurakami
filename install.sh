@@ -20,6 +20,11 @@ function karaokelrc --description "Fetch missing timed lyrics for the Kuraoke Ka
     python3 $here/tools/fetch_lrc.py \$argv
 end
 FISH
+cat > ~/.config/fish/functions/karaokedoctor.fish <<FISH
+function karaokedoctor --description "Check Kuraoke Kami: tools, SoundFont, folders, firewall, recent errors"
+    $here/bin/kuraoke-kami --doctor
+end
+FISH
 echo "Installed. Launch with: kuraoke-kami   (or from the app launcher)"
 missing=""
 for c in mpv ffmpeg ffprobe fluidsynth; do command -v $c >/dev/null || missing="$missing $c"; done

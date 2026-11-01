@@ -1,11 +1,12 @@
 import atexit
 import errno
 import shutil
+import signal
 import subprocess
 import sys
 import webbrowser
 
-from . import config
+from . import config, doctor, log
 from .server import serve
 
 
@@ -20,6 +21,12 @@ def open_ui(port):
 
 def main():
     cfg = config.load()
+    if "--doctor" in sys.argv:
+        return print(doctor.report(cfg))
+    if "--logs" in sys.argv:
+        return print("\n".join(log.tail(80)) or f"(no log yet: {config.LOG_FILE})")
+    log.setup()
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))  # so `kill` still lets mpv and the socket be cleaned up
     try:
         app, httpd = serve(cfg)
     except OSError as e:
@@ -27,6 +34,7 @@ def main():
             raise
         print(f"Already running on port {cfg['port']}; opening the screen.")
         return open_ui(cfg["port"])
+    log.log.info("started on port %s (remote=%s)", cfg["port"], cfg["remote"])
     atexit.register(app.engine.mpv.close)
     print(f"Kuraoke Kami on http://127.0.0.1:{cfg['port']}/")
     if cfg["remote"]:

@@ -4,6 +4,7 @@ import threading
 import time
 
 from . import config
+from .log import log
 from .player import Mpv, graph, prepare
 
 KEY_RANGE, TEMPO_RANGE = (-12, 12), (0.5, 1.5)
@@ -23,6 +24,7 @@ class Engine:
         self.intro_until, self.error = 0.0, ""
         self.skip_intro = threading.Event()
         self.mpv.set("volume", cfg["volume"])
+        log.info("engine ready")
 
     # ---------------------------------------------------------------- queue
     def reserve(self, song, top=False):
@@ -76,6 +78,7 @@ class Engine:
         try:
             prep = prepare(song, self.cfg)
         except Exception as ex:  # missing soundfont, bad file, ffmpeg failure: show it, move on
+            log.exception("could not prepare %s", song["path"])
             return self._fail(gen, str(ex))
         with self.lock:
             if gen != self.gen: return
@@ -103,6 +106,7 @@ class Engine:
 
     def _fail(self, gen, msg):
         """Show an error for a few seconds, then move on. Call without holding the lock."""
+        log.error("song failed: %s (%s)", msg, self.song and self.song["path"])
         with self.lock:
             if gen != self.gen: return
             self.phase, self.error = "error", msg

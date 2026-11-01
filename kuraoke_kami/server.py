@@ -6,13 +6,15 @@ import os
 import re
 import socket
 import subprocess
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import config, library
+from . import config, doctor, library
+from .log import log
 from .engine import Engine
 
 WEB = Path(__file__).resolve().parent.parent / "web"
@@ -49,6 +51,7 @@ class App:
             try:
                 library.scan(self.cfg, rebuild, lambda n: self.scan.update(count=n))
             except Exception as e:
+                log.exception("scan failed")
                 self.scan["error"] = str(e)
             self.scan["running"] = False
         threading.Thread(target=go, daemon=True).start()
@@ -110,6 +113,7 @@ class App:
         elif name == "fullscreen": return {"ok": self.fullscreen()}
         elif name == "display_closed": self.display_closing = time.time()
         elif name == "quit": self.quit()
+        elif name == "clientlog": log.error("browser: %s", str(b.get("msg", ""))[:600])
         elif name == "scan": self.start_scan(bool(b.get("rebuild")))
         elif name == "config":
             cfg.update({k: v for k, v in b.items() if k in config.EDITABLE})
@@ -188,6 +192,7 @@ def handler(app):
                 s.update(scan=app.scan, remote=app.remote_url(), cfg=app.public_cfg(), facets=library.facets() if "facets" in q else None)
                 return self.json(s)
             if p == "/api/lyrics": return self.json(e.lyrics())
+            if p == "/api/doctor": return self.json({"report": doctor.report(app.cfg, e)})
             if p == "/api/songs":
                 rows, more = library.query((q.get("q") or [""])[0], app.cfg["lang_filter"], app.cfg["country_filter"],
                                            app.cfg["dedupe"], 100, int((q.get("offset") or ["0"])[0]))
@@ -243,13 +248,22 @@ def handler(app):
                 self.json(app.act(m[1], body))
             except (ValueError, KeyError, TypeError) as e:
                 self.json({"ok": False, "error": f"bad request: {e}"}, 400)
+            except Exception as e:  # a bug: log the traceback, keep the server alive
+                log.exception("POST %s failed", self.path.split("?")[0])
+                self.json({"ok": False, "error": f"server error: {e}"}, 500)
     return H
+
+
+class Server(ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        if not isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):  # a closed tab is not an error
+            log.exception("request from %s crashed", client_address[0])
 
 
 def serve(cfg):
     app = App(cfg)
     host = "0.0.0.0" if cfg["remote"] else "127.0.0.1"
-    httpd = ThreadingHTTPServer((host, cfg["port"]), handler(app))
+    httpd = Server((host, cfg["port"]), handler(app))
     httpd.daemon_threads = True
     app.httpd = httpd
     threading.Thread(target=app.watch_display, daemon=True).start()

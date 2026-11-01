@@ -25,14 +25,13 @@ class Mpv:
         self.path = f"{run}/kuraoke-kami-mpv-{os.getpid()}.sock"  # per process: two instances never share one
         self.on_eof, self.pending, self.rid = on_eof, {}, 0
         self.slock = threading.Lock()
-        try:
-            os.unlink(self.path)
-        except OSError:
-            pass
+        for old in Path(run).glob("kuraoke-kami-mpv-*.sock"):  # left by an instance that was killed
+            if not Path("/proc", old.name.split("-")[-1].split(".")[0]).exists():
+                old.unlink(missing_ok=True)
         try:
             self.proc = subprocess.Popen(
                 ["mpv", "--idle=yes", "--no-video", "--no-terminal", "--pause", "--audio-display=no",
-                 "--volume-max=130", f"--input-ipc-server={self.path}", *os.environ.get("KURAOKE_MPV_OPTS", "").split()],
+                 "--volume-max=130", f"--input-ipc-server={self.path}", f"--log-file={config.STATE_DIR / 'mpv.log'}", "--msg-level=all=warn", *os.environ.get("KURAOKE_MPV_OPTS", "").split()],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except FileNotFoundError:
             raise RuntimeError("mpv is not installed: sudo pacman -S mpv")

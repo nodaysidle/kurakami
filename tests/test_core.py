@@ -120,6 +120,15 @@ class Names(unittest.TestCase):
         self.assertEqual(c("Artist - Topic"), "Artist")
 
 
+class Log(unittest.TestCase):
+    def test_tail_keeps_errors_with_tracebacks(self):
+        from kuraoke_kami import log
+        config.LOG_FILE = Path(tempfile.mkdtemp()) / "k.log"
+        config.LOG_FILE.write_text("2026-11-01 19:00:00,1 INFO started\n2026-11-01 19:00:01,1 ERROR boom\nTraceback (most recent call last):\n  File x\nValueError: no\n2026-11-01 19:00:02,1 INFO fine\n")
+        self.assertEqual(log.tail(10, only_errors=True), ["2026-11-01 19:00:01,1 ERROR boom", "Traceback (most recent call last):", "  File x", "ValueError: no"])
+        self.assertEqual(len(log.tail(2)), 2)
+
+
 class Player(unittest.TestCase):
     def test_graph(self):
         self.assertEqual(graph({"base": 1}, False, True, 0), "[aid1]volume=1[s0];[s0]amix=inputs=1:normalize=0,anull[ao]")

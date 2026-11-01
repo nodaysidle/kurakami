@@ -172,6 +172,16 @@ tools/          import_songs.py (karaokeimp)  fetch_lrc.py
 tests/          test_core.py  test_lyricpage.js  fixtures.py
 ```
 
+## When something goes wrong
+
+```fish
+karaokedoctor              # tools, SoundFont, folders, firewall, audio, last errors (also: Settings → Diagnostics)
+kuraoke-kami --logs        # the log: ~/.local/state/kuraoke-kami/kuraoke.log
+```
+
+Failures are logged with a full traceback (a bad file, a missing SoundFont, an mpv error, a crashed request, a JavaScript
+error in the window). A song that cannot play shows its error on screen for five seconds and the queue moves on.
+
 ## Tests
 
 ```bash

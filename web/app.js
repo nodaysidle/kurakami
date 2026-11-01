@@ -345,6 +345,14 @@ addEventListener("keydown", (e) => {
   if (map[k.length === 1 ? k.toLowerCase() : k]) go(map[k.length === 1 ? k.toLowerCase() : k]);
 });
 
+// ------------------------------------------------------------------ errors go to the log (kuraoke-kami --doctor shows them)
+let reported = 0;
+function report(msg) { if (reported++ < 10) api("clientlog", { msg }).catch(() => {}); }
+addEventListener("error", (e) => report(`${e.message} at ${(e.filename || "").split("/").pop()}:${e.lineno}`));
+addEventListener("unhandledrejection", (e) => report("promise: " + (e.reason && e.reason.message || e.reason)));
+
+$("#run-doctor").onclick = async () => { $("#doctor-out").textContent = (await get("/api/doctor")).report; };
+
 // ------------------------------------------------------------------ boot
 // closing the TV window stops the whole app (the server waits 3 s so a reload doesn't count)
 if (DISPLAY) addEventListener("pagehide", () => navigator.sendBeacon(mediaUrl("/api/display_closed")));

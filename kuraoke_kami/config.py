@@ -9,6 +9,8 @@ _h = Path.home()
 CFG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", _h / ".config")) / "kuraoke-kami"
 DATA_DIR = Path(os.environ.get("XDG_DATA_HOME", _h / ".local/share")) / "kuraoke-kami"
 CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", _h / ".cache")) / "kuraoke-kami"
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", _h / ".local/state")) / "kuraoke-kami"
+LOG_FILE = STATE_DIR / "kuraoke.log"
 CFG_FILE = CFG_DIR / "config.json"
 DB_FILE = DATA_DIR / "library.db"
 
