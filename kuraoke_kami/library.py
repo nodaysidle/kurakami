@@ -35,10 +35,14 @@ def norm(title, artist):
 JUNK = re.compile(r"\s*[\(\[][^\)\]]*\b(official|video|audio|lyrics?|visuali[sz]er|hd|hq|4k|karaoke|sanremo|clip|mv)\b[^\)\]]*[\)\]]", re.I)
 
 
+TRAIL = re.compile(r"\s+(official\s+(music\s+)?(video|audio|visuali[sz]er|lyric\s+video)|(lyrics?|lyric)\s+video|video\s+ufficiale|audio\s+ufficiale|videoclip)\s*$", re.I)
+
+
 def clean_stem(stem):
     """'ARTIST - CUORICINI (Official Video - Sanremo 2025) [dQw4w9WgXcQ]' -> 'Artist - Cuoricini'."""
     s = re.sub(r"\s*\[[\w-]{11}\]$", "", stem)          # yt-dlp video id
     s = JUNK.sub("", s)
+    s = TRAIL.sub("", s)            # "Title Official Video" without brackets
     s = re.sub(r"\s*-\s*Topic$", "", s)
     s = re.sub(r'[/\\:*?"<>|]', "", s)
     s = " ".join(s.split())

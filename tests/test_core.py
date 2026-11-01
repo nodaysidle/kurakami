@@ -118,6 +118,10 @@ class Names(unittest.TestCase):
         self.assertEqual(c("Artist - Song [dQw4w9WgXcQ]"), "Artist - Song")
         self.assertEqual(c("Fabri Fibra - Che Fine (Red Bull 64 Bars)"), "Fabri Fibra - Che Fine (Red Bull 64 Bars)")
         self.assertEqual(c("Artist - Topic"), "Artist")
+        self.assertEqual(c("Marracash - Stupido Official Video"), "Marracash - Stupido")
+        self.assertEqual(c("Artist - Song Official Music Video"), "Artist - Song")
+        self.assertEqual(c("Artist - Song Video Ufficiale"), "Artist - Song")
+        self.assertEqual(c("Artist - Official Video Game"), "Artist - Official Video Game")   # only trailing junk goes
 
 
 class Log(unittest.TestCase):

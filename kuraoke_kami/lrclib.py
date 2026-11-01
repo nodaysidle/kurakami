@@ -30,7 +30,8 @@ def length(path):
 
 def find(artist, title, dur):
     """-> (lrc_text, 'Artist - Title') or (None, reason). Matches must be within 8 s of the file length."""
-    title = re.sub(r"\s*[\(\[].*?[\)\]]", "", title).strip()
+    from .library import TRAIL
+    title = TRAIL.sub("", re.sub(r"\s*[\(\[].*?[\)\]]", "", title)).strip()
     hits = _call({"artist_name": artist, "track_name": title})
     if not hits:
         hits = _call({"q": f"{artist} {title}".strip()})
