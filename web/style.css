@@ -23,15 +23,15 @@ code, pre { background: #00000055; padding: .3em .5em; border-radius: 6px; word-
 @keyframes drift { to { background-position: 100% 100%; } }
 #vid, #cdg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
 #cdg { image-rendering: pixelated; }
-#lyrics { position: absolute; left: 4vw; right: 4vw; bottom: 9vh; display: flex; flex-direction: column; gap: 2vh; text-align: center; }
-#stage[data-kind="video"] #lyrics, #stage[data-kind="cdg"] #lyrics { bottom: 3vh; }
+#lyrics { position: absolute; left: 4vw; right: 4vw; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 2vh; text-align: center; }
+#stage[data-kind="video"] #lyrics, #stage[data-kind="cdg"] #lyrics { top: auto; bottom: 3vh; transform: none; }
 .ln { font-size: clamp(28px, 6.2vw, 120px); font-weight: 800; line-height: 1.15; min-height: 1.15em; white-space: pre-wrap; opacity: .55; transition: opacity .3s;
   filter: drop-shadow(0 .06em .1em #000c); }
 .ln.now { opacity: 1; }
 .ln span { white-space: pre-wrap; color: transparent; -webkit-background-clip: text; background-clip: text;
   background-image: linear-gradient(90deg, var(--sung) var(--p, 0%), var(--unsung) var(--p, 0%)); -webkit-text-stroke: .02em #000a; paint-order: stroke fill; }
-#dots { position: absolute; left: 4vw; bottom: 38vh; font-size: 6vw; color: var(--cyan); letter-spacing: .1em; filter: drop-shadow(0 0 .3em var(--cyan)); }
-#stage[data-kind="cdg"] #dots, #stage[data-kind="video"] #dots { bottom: 30vh; }
+#dots { position: absolute; left: 4vw; top: calc(50% - 22vh); font-size: 6vw; color: var(--cyan); letter-spacing: .1em; filter: drop-shadow(0 0 .3em var(--cyan)); }
+#stage[data-kind="cdg"] #dots, #stage[data-kind="video"] #dots { top: auto; bottom: 30vh; }
 
 #intro, #idle, #error { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6vw; gap: 2vh; }
 #intro .num { font-size: 4vw; color: var(--cyan); letter-spacing: .2em; }
@@ -89,3 +89,6 @@ li .k { color: var(--muted); font-size: .7em; text-transform: uppercase; }
 .grid input[name=path] { grid-column: 1 / -1; }
 h3 { margin: 1em 0 0; color: var(--cyan); font-size: .95em; text-transform: uppercase; letter-spacing: .08em; }
 pre { white-space: pre-wrap; color: var(--muted); }
+
+.keys { margin: 0; font: inherit; font-size: clamp(12px, 1.25vw, 22px); line-height: 1.5; color: var(--muted); text-align: left; background: #0008; padding: .7em 1.2em; border-radius: 12px; }
+#keyhelp { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: var(--ink); z-index: 10; border: 1px solid var(--cyan); }

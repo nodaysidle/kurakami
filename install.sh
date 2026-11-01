@@ -15,6 +15,11 @@ function karaokeimp --description "Import downloaded songs into Kuraoke Kami (na
     python3 $here/tools/import_songs.py \$argv
 end
 FISH
+cat > ~/.config/fish/functions/karaokelrc.fish <<FISH
+function karaokelrc --description "Fetch missing timed lyrics for the Kuraoke Kami song folder"
+    python3 $here/tools/fetch_lrc.py \$argv
+end
+FISH
 echo "Installed. Launch with: kuraoke-kami   (or from the app launcher)"
 missing=""
 for c in mpv ffmpeg ffprobe fluidsynth; do command -v $c >/dev/null || missing="$missing $c"; done

@@ -7,6 +7,7 @@ import re
 import socket
 import subprocess
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -31,6 +32,8 @@ class App:
     def __init__(self, cfg):
         self.cfg, self.engine = cfg, Engine(cfg)
         self.scan = {"running": False, "count": 0, "error": ""}
+        self.httpd = None
+        self.display_last = self.display_closing = 0.0   # the TV window polls with d=1; 0.0 = never seen
         self.host_ok = {"localhost", "127.0.0.1", "::1", lan_ip(), socket.gethostname().lower()}
 
     def remote_url(self):
@@ -50,16 +53,40 @@ class App:
             self.scan["running"] = False
         threading.Thread(target=go, daemon=True).start()
 
-    # -------------------------------------------------------------- fullscreen (Hyprland)
-    def fullscreen(self):
+    # -------------------------------------------------------------- display window lifetime
+    def watch_display(self):
+        """Stop everything once the TV window is gone, so closing it really closes the app.
+        The page sends a beacon when it closes (3 s grace so Ctrl+R doesn't count); 2 minutes of silence also counts."""
+        while True:
+            time.sleep(1)
+            if not self.display_last:
+                continue  # never had a window (--no-ui, phone only): keep running
+            now = time.time()
+            if (self.display_closing and now - self.display_closing > 3) or now - self.display_last > 120:
+                return self.quit(close_window=False)
+
+    def quit(self, close_window=True):
+        if close_window:
+            self.hypr_window('hl.dsp.window.close({ window = "address:%s" })', "dispatch closewindow address:%s")
+        threading.Thread(target=self.httpd.shutdown, daemon=True).start()
+
+    # -------------------------------------------------------------- Hyprland: act on our own window
+    def hypr_window(self, lua, legacy):
+        """Run a window dispatcher on the 'Kuraoke Kami' window. Tries the Lua API (Hyprland 0.5x+), then the old syntax."""
         try:
             cl = json.loads(subprocess.run(["hyprctl", "clients", "-j"], capture_output=True, text=True, timeout=3).stdout)
-            w = next(c for c in cl if c["title"].startswith("Kuraoke Kami"))
-            subprocess.run(["hyprctl", "--batch", f"dispatch focuswindow address:{w['address']} ; dispatch fullscreen 0"],
-                           capture_output=True, timeout=3)
-            return True
+            addr = next(c["address"] for c in cl if c["title"].startswith("Kuraoke Kami"))
+            for args in (["dispatch", lua % addr], ["--batch", legacy % addr]):
+                out = subprocess.run(["hyprctl", *args], capture_output=True, text=True, timeout=3).stdout
+                if "ok" in out and "error" not in out.lower():
+                    return True
         except (OSError, StopIteration, ValueError, subprocess.SubprocessError):
-            return False  # the page falls back to the browser Fullscreen API
+            pass
+        return False  # the page falls back to the browser Fullscreen API
+
+    def fullscreen(self):
+        return self.hypr_window('hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle", window = "address:%s" })',
+                                "dispatch focuswindow address:%s ; dispatch fullscreen 0")
 
     # -------------------------------------------------------------- POST /api/<action>
     def act(self, name, b):
@@ -81,6 +108,8 @@ class App:
         elif name in ("melody", "chorus"): e.toggle(name)
         elif name == "volume": e.set_volume(b.get("value", cfg["volume"]) if "delta" not in b else cfg["volume"] + int(b["delta"]))
         elif name == "fullscreen": return {"ok": self.fullscreen()}
+        elif name == "display_closed": self.display_closing = time.time()
+        elif name == "quit": self.quit()
         elif name == "scan": self.start_scan(bool(b.get("rebuild")))
         elif name == "config":
             cfg.update({k: v for k, v in b.items() if k in config.EDITABLE})
@@ -153,6 +182,8 @@ def handler(app):
             if not self.authed(q): return self.send(401, "token required")
             e = app.engine
             if p == "/api/state":
+                if "d" in q:
+                    app.display_last, app.display_closing = time.time(), 0.0
                 s = e.state()
                 s.update(scan=app.scan, remote=app.remote_url(), cfg=app.public_cfg(), facets=library.facets() if "facets" in q else None)
                 return self.json(s)
@@ -220,4 +251,6 @@ def serve(cfg):
     host = "0.0.0.0" if cfg["remote"] else "127.0.0.1"
     httpd = ThreadingHTTPServer((host, cfg["port"]), handler(app))
     httpd.daemon_threads = True
+    app.httpd = httpd
+    threading.Thread(target=app.watch_display, daemon=True).start()
     return app, httpd

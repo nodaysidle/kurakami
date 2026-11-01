@@ -22,7 +22,7 @@ AUDIO_EXT = (".mp3", ".wav", ".flac", ".ogg", ".m4a", ".opus")
 class Mpv:
     def __init__(self, on_eof):
         run = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
-        self.path = f"{run}/kuraoke-kami-mpv.sock"
+        self.path = f"{run}/kuraoke-kami-mpv-{os.getpid()}.sock"  # per process: two instances never share one
         self.on_eof, self.pending, self.rid = on_eof, {}, 0
         self.slock = threading.Lock()
         try:
@@ -86,6 +86,10 @@ class Mpv:
 
     def close(self):
         self.proc.terminate()
+        try:
+            os.unlink(self.path)
+        except OSError:
+            pass
 
 
 def graph(layers, melody, chorus, key):

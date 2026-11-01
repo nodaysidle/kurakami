@@ -1,118 +1,191 @@
 # karaokeimp: user guide
 
-`karaokeimp` takes songs you just downloaded and puts them into your karaoke library: it fixes the file names, fetches
-timed lyrics, moves everything into `~/dev/nodaysidle/kuraoke-kami/songs`, and gives each song a number in the app.
+`karaokeimp` is the fish command that turns songs you just downloaded into karaoke songs:
 
-## One-time setup
+1. it fixes the file name to `Artist - Title`,
+2. it looks up **timed lyrics** and saves them next to the song,
+3. it moves the song into your library folder `~/dev/nodaysidle/kuraoke-kami/songs`,
+4. it gives the song a number in the app.
+
+You never rename or move anything by hand.
+
+---
+
+## Quick start (copy these steps exactly)
+
+**Step 0, one time only.** Set up the command:
 
 ```fish
 cd ~/dev/nodaysidle/kuraoke-kami
 ./install.sh
+exec fish
 ```
 
-This creates the fish command `karaokeimp`. Open a new terminal (or run `exec fish`) and check it:
+Check that it works: `type karaokeimp` should print `karaokeimp is a function`.
+
+**Step 1. Download your songs** with the browser or downloader as usual. They land in `~/Downloads`.
+Songs named like `Artist - Title.mp3` work best (YouTube-style names such as
+`Calcutta - Milano (Official Video).mp3` are fine).
+
+**Step 2. Look before you move.** Run:
 
 ```fish
-type karaokeimp
+karaokeimp --dry-run
 ```
 
-## Every time you download songs
+Nothing is changed. You get a list of what it found and the **new** names:
 
-1. **Put the downloads in one folder.** By default the script looks in `~/Downloads`. Use a dedicated folder
-   (for example `~/Downloads/karaoke`) if that folder holds other things, see "Pick another folder" below.
-2. **Look first (changes nothing):**
-   ```fish
-   karaokeimp --dry-run
-   ```
-   You see a list like:
-   ```
-   /home/arch/Downloads  ->  /home/arch/dev/nodaysidle/kuraoke-kami/songs
+```
+/home/you/Downloads  ->  /home/you/dev/nodaysidle/kuraoke-kami/songs
 
-     Yung Lean - Forever Yung   [.mp3]
-     Disc Girl - Cdg Song   [.cdg,.mp3]
-     ?? random name.mp3   (no 'Artist - Title' in the name or tags: rename it, then run again)
-   ```
-   - The names on the left are the **new** names. Check they are right.
-   - A line starting with `??` could not be named. Rename that file yourself to `Artist - Title.mp3`.
-3. **Do it:**
-   ```fish
-   karaokeimp
-   ```
-   It repeats the list and asks `Move N song(s)? [y/N]`. Type `y` and press Enter. Anything else cancels.
-4. **Read the result.** For each song it prints whether lyrics were saved:
-   - `lyrics saved (Artist - Title)`: timed lyrics found.
-   - `lyrics no synced match`: no timed lyrics exist on lrclib.net for that song; it will play without words (see "No lyrics" below).
-   - `lyrics service unavailable`: lrclib was busy. Run `python3 tools/fetch_lrc.py songs/` again in a few minutes.
+  Calcutta - Milano   [.mp3]
 
-   At the end you get the song numbers, for example `10003  Yung Lean - Forever Yung  [audio]`.
-5. **In the app:** press **S** → **Scan (keep numbers)**. Then type the number and press Enter to sing.
+Nothing changed.
+```
 
-## Options
+- Names look right? Go to step 3.
+- A line starting with `??` means it could not find "Artist - Title" for that file. Rename that file
+  yourself (for example `Artist - Title.mp3`) and run `karaokeimp --dry-run` again.
+- `Nothing to import.` means no song files are in `~/Downloads` (see "Problems").
+
+**Step 3. Import for real.** Run:
+
+```fish
+karaokeimp
+```
+
+It shows the same list and asks:
+
+```
+Move 1 song(s)? [y/N]
+```
+
+Type `y` and press Enter. Any other answer cancels and nothing moves.
+
+**Step 4. Read the result.**
+
+```
+  Calcutta - Milano: lyrics saved (Calcutta - Milano)
+
+Now in the song book:
+  10003  Calcutta - Milano  [audio]
+```
+
+- `10003` is the number you type in the karaoke app.
+- `lyrics saved (...)`: timed lyrics were found and saved.
+- `lyrics no synced match`: that song has no timed lyrics on the lyrics site. It still plays, without words.
+- `lyrics service unavailable`: the lyrics site was busy. This is common. Do step 6 a few minutes later.
+
+**Step 5. Sing.** Open Kuraoke Kami from the app menu (or run `kuraoke-kami`). In the app:
+
+1. press **S** (Settings), then click **Scan (keep numbers)**, then press **Esc**,
+2. type the song number, for example `10003`, and press **Enter**.
+
+**Step 6. Missing lyrics? Fetch them again.** Run:
+
+```fish
+karaokelrc
+```
+
+(Run it from any folder. It looks in `~/dev/nodaysidle/kuraoke-kami/songs`; give another folder as an argument if you use one.
+No `venv`, no `pip`: the project uses only what Python already ships with. If `karaokelrc` is not found, run `./install.sh` again and `exec fish`.)
+
+It only tries songs that have no lyrics file yet, so it is safe to run as often as you like.
+After it prints `saved (...)`, press **S → Scan** in the app (or just start the song, lyrics are read when a song starts).
+
+---
+
+## All commands
 
 | Command | What it does |
 |---------|--------------|
-| `karaokeimp` | import from `~/Downloads`, ask first |
 | `karaokeimp --dry-run` | show the plan, change nothing |
-| `karaokeimp ~/Downloads/karaoke` | import from another folder |
-| `karaokeimp --copy` | copy instead of move (originals stay) |
-| `karaokeimp --yes` | skip the question (use only after a dry run) |
-| `karaokeimp --no-lyrics` | don't look for lyrics |
-| `karaokeimp --dest ~/Music/Karaoke-TL --lang tl` | import into another library folder, labelled Tagalog |
+| `karaokeimp` | import from `~/Downloads`, ask first |
+| `karaokeimp ~/Downloads/karaoke` | import from a different folder |
+| `karaokeimp --copy` | copy instead of move (the original stays in Downloads) |
+| `karaokeimp --yes` | do not ask "Move N song(s)?" (use only after a dry run) |
+| `karaokeimp --no-lyrics` | do not look for lyrics |
+| `karaokeimp --dest ~/Music/Karaoke-TL --lang tl --country PH` | import into another library folder, labelled Tagalog |
+| `karaokeimp --help` | show every option |
 
-Options can be combined, for example `karaokeimp ~/Downloads/karaoke --copy --dry-run`.
+Options can be combined: `karaokeimp ~/Downloads/karaoke --copy --dry-run`.
 
-### Pick another folder
-`karaokeimp ~/Downloads/karaoke` imports only from that folder. The script only looks at the top level of the folder you give
-it and ignores files that aren't songs (`.txt`, `.zip`, images...).
+**Tip:** make a folder `~/Downloads/karaoke`, save only karaoke downloads there, and always use
+`karaokeimp ~/Downloads/karaoke`. Then the script never looks at anything else.
 
-### A second library (for example Tagalog songs)
-```fish
-karaokeimp --dest ~/Music/Karaoke-TL --lang tl --country PH
-```
-The first time, that folder is added to the app with the language label `tl` and its own number block (20000, 30000...).
-Then in the app (S → Settings) you can show or hide languages with the filters.
+---
 
 ## What it does to each file
 
-| In your download folder | After import |
-|-------------------------|--------------|
-| `YUNG LEAN - FOREVER YUNG (Official Video) [dQw4w9WgXcQ].mp3` | `Yung Lean - Forever Yung.mp3` + `Yung Lean - Forever Yung.lrc` |
-| `Song (Karaoke).mp3` + `Song (Karaoke).cdg` | both renamed the same, kept together |
-| a Clone Hero / Chorus folder with `song.ini` | moved as a whole folder, named `Artist - Title` |
+| In your download folder | After the import |
+|-------------------------|------------------|
+| `YUNG LEAN - FOREVER YUNG (Official Video) [dQw4w9WgXcQ].mp3` | `Yung Lean - Forever Yung.mp3` + `Yung Lean - Forever Yung.lrc` (the lyrics) |
+| `Song (Karaoke).mp3` and `Song (Karaoke).cdg` | both renamed the same, kept together |
+| a Clone Hero / "Chorus" folder (has `song.ini`) | moved as a whole folder, named `Artist - Title` |
 
-- It removes: `(Official Video)`, `(Lyrics)`, `[video id]`, `- Topic`, characters not allowed in file names, and ALL CAPS words.
-- It keeps other brackets such as `(Red Bull 64 Bars)`.
-- If a file has no `Artist - Title` in its name it reads the embedded artist/title tags. If there are none, it is listed with `??` and left alone.
-- It **never overwrites**: a song already in the library is reported as `skip (already in library)` and left in the download folder.
+- It removes `(Official Video)`, `(Lyrics)`, `[video id]`, `- Topic`, characters that are not allowed in file names,
+  and ALL-CAPS words. Other brackets such as `(Red Bull 64 Bars)` stay.
+- If the name has no `Artist - Title`, it tries the artist and title stored inside the file. If there are none, the file is
+  listed with `??` and left alone.
+- It **never overwrites**: a song already in the library is reported as `skip (already in library)` and stays in Downloads.
+- It only looks at the top level of the folder you give it, and ignores files that are not songs (images, `.txt`, `.zip`...).
 - Supported: mp3, wav, flac, ogg, m4a, opus, mp4, mkv, webm, m4v, mid, midi, kar, cdg, and Chorus folders.
-  `.mpg` and `.avi` videos are not supported (the app can't show them); convert them first:
-  `ffmpeg -i in.mpg -c:v libx264 -pix_fmt yuv420p -c:a aac out.mp4`.
+  `.mpg` and `.avi` are not supported because the app cannot show them. Convert first:
+  `ffmpeg -i in.mpg -c:v libx264 -pix_fmt yuv420p -c:a aac out.mp4`
 
-## Lyrics
+## Lyrics, in detail
 
-Lyrics come from [lrclib.net](https://lrclib.net), a free community database. Only the artist, title and length of the song are sent.
-A lyrics file is accepted only if the song length matches yours within 8 seconds, so you don't get the wrong version.
+Lyrics come from [lrclib.net](https://lrclib.net), a free community database of **timed** lyrics. Only the artist,
+the title and the length of the song are sent. A result is used only if its length is within 8 seconds of your file,
+so you never get the lyrics of a different version.
 
-### No lyrics for a song
-Lyrics from Google are plain text without times, so they don't work. Instead:
-1. Search for `"<artist> <title> lrc"`, download an `.lrc` file.
-2. Save it **next to the song with exactly the same name**: `songs/Artist - Title.lrc`.
-3. In the app: S → Scan.
+Lyrics you copy from Google are plain text without times, so the app cannot use them. If lrclib has no match:
 
-Fetch lyrics later for songs already in the library:
-```fish
-python3 ~/dev/nodaysidle/kuraoke-kami/tools/fetch_lrc.py ~/dev/nodaysidle/kuraoke-kami/songs
-```
+1. search the web for `<artist> <title> lrc` and download an `.lrc` file,
+2. save it **next to the song with exactly the same name**: `songs/Artist - Title.lrc`,
+3. press **S → Scan** in the app.
+
+Lyrics with one time per line are shown word by word by spreading the words across the line, so the fill moves smoothly
+but the timing of single words is approximate.
+
+## In the app: keys
+
+Click the karaoke window once, then:
+
+| Key | What it does |
+|-----|--------------|
+| `0-9` then `Enter` | sing a song by number |
+| `/` | open the song book (click **＋** to reserve, **⤒** to sing next) |
+| `Space` | pause, or skip the intro |
+| `N` / `R` | next song / restart |
+| `+` / `-` | key up / down |
+| `[` / `]` | slower / faster |
+| `M` / `C` | melody / chorus on or off |
+| `↑` / `↓` | volume |
+| `F` | fullscreen |
+| `Q` / `S` | queue / settings |
+| `Tab` | menu with big buttons |
+| `H` | show or hide this key list |
+| `Esc` | close |
+
+The same list is on the idle screen. After an update of the app, press `Ctrl+R` in the karaoke window to load it.
+
+## Closing the app
+
+Close the karaoke window like any other window (your normal Hyprland close key), or open **S → Quit Kuraoke Kami**.
+Both stop everything: the window, the music and the phone remote. Opening it again from the menu starts it fresh.
+(If you use the phone only, started with `kuraoke-kami --no-ui`, it keeps running until you press Quit.)
 
 ## Problems
 
 | You see | Do this |
 |---------|---------|
-| `karaokeimp: command not found` | run `./install.sh` again in the project folder, then open a new terminal |
-| `Nothing to import.` | the folder has no songs with a name it can read, or you pointed at the wrong folder: add the folder, e.g. `karaokeimp ~/Downloads/karaoke` |
-| a song is in the library but not in the app | S → Scan in the app |
-| a name came out wrong | rename the file in `songs/` by hand to `Artist - Title.ext` (also rename its `.lrc`), then S → Scan. The song keeps its number only if the file path stays the same, a renamed file gets a new number |
-| lyrics are slightly off | line-timed lyrics are spread over each line, so word timing is approximate; this is normal |
-| the app can't play MIDI | install a SoundFont: `sudo pacman -S soundfont-fluid` |
-
-Run `karaokeimp --help` to see all options.
+| `karaokeimp: command not found` | run `./install.sh` again in the project folder, then `exec fish` |
+| `Nothing to import.` | there are no song files at the top of that folder. Check `ls ~/Downloads`, or give the right folder: `karaokeimp ~/Downloads/karaoke` |
+| a `??` line | rename that file to `Artist - Title.mp3` and run again |
+| the song is imported but not in the app | press **S → Scan (keep numbers)** in the app |
+| a name came out wrong | rename the file in `songs/` by hand to `Artist - Title.ext` (and its `.lrc`), then **S → Scan**. A renamed file gets a new number |
+| `lyrics service unavailable` | the lyrics site is busy. Run step 6 again in a few minutes |
+| lyrics start too early or too late | the lyrics file is for another version of the song. Delete the `.lrc` and use another one (see "Lyrics, in detail") |
+| MIDI songs are silent | install a SoundFont: `sudo pacman -S soundfont-fluid` |
+| the phone remote does not connect | `sudo ufw allow 8890/tcp` |

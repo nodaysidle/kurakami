@@ -11,7 +11,7 @@ function applyI18n() {
   $$("[data-i18n]").forEach((e) => (e.textContent = t(e.dataset.i18n)));
   $$("[data-i18n-title]").forEach((e) => (e.title = t(e.dataset.i18nTitle)));
   $$("[data-i18n-ph]").forEach((e) => (e.placeholder = t(e.dataset.i18nPh)));
-  $("#keys").textContent = t("keys");
+  for (const id of ["#keys", "#idle-keys", "#keyhelp"]) $(id).textContent = t("keys");
 }
 
 // ------------------------------------------------------------------ api
@@ -39,7 +39,8 @@ async function reserve(body) {
 let facetTick = 0;
 async function poll() {
   try {
-    onState(await get("/api/state" + (facetTick++ % 12 === 0 ? "?facets=1" : "")));
+    const q = [DISPLAY && "d=1", facetTick++ % 12 === 0 && "facets=1"].filter(Boolean).join("&");
+    onState(await get("/api/state?" + q));
     $("#app").classList.remove("offline");
   } catch (e) { $("#app").classList.add("offline"); }
   setTimeout(poll, 400);
@@ -336,6 +337,7 @@ addEventListener("keydown", (e) => {
     " ": () => api("pause"), n: () => api("next"), r: () => api("restart"),
     "+": () => api("key", { delta: 1 }), "=": () => api("key", { delta: 1 }), "-": () => api("key", { delta: -1 }),
     "]": () => api("tempo", { delta: 0.05 }), "[": () => api("tempo", { delta: -0.05 }),
+    h: () => ($("#keyhelp").hidden = !$("#keyhelp").hidden),
     m: () => api("melody"), c: () => api("chorus"), f: toggleFullscreen,
     q: () => { menu(true); showTab("queue"); }, s: () => { menu(true); showTab("set"); },
     ArrowUp: () => api("volume", { delta: 5 }), ArrowDown: () => api("volume", { delta: -5 }),
@@ -344,6 +346,8 @@ addEventListener("keydown", (e) => {
 });
 
 // ------------------------------------------------------------------ boot
+// closing the TV window stops the whole app (the server waits 3 s so a reload doesn't count)
+if (DISPLAY) addEventListener("pagehide", () => navigator.sendBeacon(mediaUrl("/api/display_closed")));
 document.body.classList.toggle("display", DISPLAY);
 $("#stage").hidden = !DISPLAY;
 $("#qr").src = mediaUrl("/api/qr.svg");

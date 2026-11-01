@@ -23,12 +23,14 @@
   <div id="idle">
     <h1>KURAOKE&nbsp;KAMI</h1>
     <p data-i18n="idle_hint"></p>
+    <pre class="keys" id="idle-keys"></pre>
     <div id="idle-remote"><img id="qr" alt=""><div><span data-i18n="remote_use"></span><code id="idle-url"></code></div></div>
   </div>
   <div id="hud">
     <div id="chips"></div>
     <div id="nextbar"></div>
   </div>
+  <pre class="keys" id="keyhelp" hidden></pre>
   <div id="entry"></div>
   <div id="error"></div>
 </div>
@@ -81,6 +83,7 @@
         <select id="s-lang"><option value="en">English</option><option value="tl">Tagalog</option></select></label>
       <label class="f"><span data-i18n="dedupe"></span><input type="checkbox" id="s-dedupe"></label>
       <label class="f"><span data-i18n="intro_secs"></span><input type="number" id="s-intro" min="0" max="30"></label>
+      <button data-a="quit" class="warn" data-i18n="quit"></button>
       <label class="f"><span data-i18n="soundfont"></span><input id="s-sf" placeholder="/usr/share/soundfonts/FluidR3_GM.sf2"></label>
 
       <h3 data-i18n="s_filters"></h3>
