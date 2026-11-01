@@ -110,6 +110,7 @@ class App:
         elif name == "tempo": e.set_tempo(b.get("value"), float(b.get("delta", 0)))
         elif name in ("melody", "chorus"): e.toggle(name)
         elif name == "volume": e.set_volume(b.get("value", cfg["volume"]) if "delta" not in b else cfg["volume"] + int(b["delta"]))
+        elif name == "sync": e.set_sync(b.get("value"), float(b.get("delta", 0)))
         elif name == "fullscreen": return {"ok": self.fullscreen()}
         elif name == "display_closed": self.display_closing = time.time()
         elif name == "quit": self.quit()

@@ -27,6 +27,7 @@ DEFAULTS = {
     "port": 8890,
     "soundfont": "",
     "intro": 5,              # seconds of intro screen
+    "offsets": {},           # song path -> seconds the lyrics are shifted later (+) or earlier (-)
     "token": "",
 }
 # keys the web UI may change through /api/config

@@ -81,6 +81,7 @@ function render() {
   $("#o-key").textContent = (s.key > 0 ? "+" : "") + s.key;
   $("#o-tempo").textContent = Math.round(s.tempo * 100) + "%";
   $("#o-vol").textContent = s.volume;
+  $("#o-sync").textContent = (s.lyric_offset > 0 ? "+" : "") + s.lyric_offset.toFixed(2) + " s";
   for (const k of ["melody", "chorus"]) {
     const b = $("#b-" + k);
     b.textContent = `${t(k)}: ${s[k] ? t("on") : t("off")}`;
@@ -243,7 +244,7 @@ function frame() {
     if (!vid.seeking && Math.abs(vid.currentTime - tt) > 0.3) vid.currentTime = tt;
   }
   if (cdg) { cdg.advance(tt); cdg.draw(cv.getContext("2d")); }
-  renderLyrics(tt);
+  renderLyrics(tt - (S.lyric_offset || 0));   // per-song lyric sync nudge
 }
 
 function renderLyrics(tt) {
@@ -294,6 +295,12 @@ document.addEventListener("click", (e) => {
   api(a, body);
 });
 
+async function nudge(delta) {
+  await api("sync", { delta });
+  const o = (await get("/api/state")).lyric_offset;
+  flash(`${t("lyrics")} ${o > 0 ? "+" : ""}${o.toFixed(2)} s`);
+}
+
 async function toggleFullscreen() {
   const r = await api("fullscreen");
   if (!r.ok && DISPLAY) document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
@@ -338,6 +345,7 @@ addEventListener("keydown", (e) => {
     "+": () => api("key", { delta: 1 }), "=": () => api("key", { delta: 1 }), "-": () => api("key", { delta: -1 }),
     "]": () => api("tempo", { delta: 0.05 }), "[": () => api("tempo", { delta: -0.05 }),
     h: () => ($("#keyhelp").hidden = !$("#keyhelp").hidden),
+    ",": () => nudge(-0.25), ".": () => nudge(0.25), "<": () => nudge(-2), ">": () => nudge(2),
     m: () => api("melody"), c: () => api("chorus"), f: toggleFullscreen,
     q: () => { menu(true); showTab("queue"); }, s: () => { menu(true); showTab("set"); },
     ArrowUp: () => api("volume", { delta: 5 }), ArrowDown: () => api("volume", { delta: -5 }),

@@ -180,7 +180,16 @@ mv ~/Downloads/stupido.lrc ~/dev/nodaysidle/kuraoke-kami/songs/"Marracash - Stup
 
 Check it worked: the song's lyrics should appear on the TV window while it plays. If they do not, run `karaokedoctor`.
 
-**Lyrics start too early or too late.** The file is for another version of the song (live, remix, radio edit). Delete it and
+**Lyrics start too early or too late: nudge them.** Downloaded videos often have a few seconds added at the start (an intro or a
+black screen), so the timed lyrics run early. While the song plays:
+
+- press **`.`** if the words come **too early** (moves the lyrics later by 0.25 s per press); **`>`** (Shift + `.`) moves them later by 2 s,
+- press **`,`** if the words come **too late** (earlier by 0.25 s per press); **`<`** (Shift + `,`) moves them earlier by 2 s,
+- or use the **Lyrics − / +** buttons on the phone (Sing tab). **0** resets it.
+
+The value is saved for that song, so you only do it once. Tip: use the 2-second steps first, then fine-tune with the small ones.
+
+If a nudge cannot fix it (the words belong to a different edit of the song), the `.lrc` is for another version. Delete it and
 use another one from Step 3 (do not run `karaokelrc` again for this, it would fetch the same file):
 
 ```fish
@@ -222,6 +231,7 @@ Click the karaoke window once, then:
 | `+` / `-` | key up / down |
 | `[` / `]` | slower / faster |
 | `M` / `C` | melody / chorus on or off |
+| `,` / `.` | lyrics earlier / later (`<` `>` = 2 s steps), saved per song |
 | `↑` / `↓` | volume |
 | `F` | fullscreen |
 | `Q` / `S` | queue / settings |

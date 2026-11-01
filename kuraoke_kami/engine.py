@@ -19,7 +19,7 @@ class Engine:
         self.phase, self.song, self.prep = "idle", None, None
         self.gen = 0          # bumps whenever the current song is abandoned
         self.rev = 0          # bumps per song so clients know to refetch lyrics
-        self.key, self.tempo = 0, 1.0
+        self.key, self.tempo, self.lyric_offset = 0, 1.0, 0.0
         self.melody, self.chorus = cfg["melody"], cfg["chorus"]
         self.intro_until, self.error = 0.0, ""
         self.skip_intro = threading.Event()
@@ -68,6 +68,7 @@ class Engine:
         item = self.queue.pop(0)
         self.song, self.prep, self.error = item["song"], None, ""
         self.key, self.tempo = 0, 1.0
+        self.lyric_offset = self.cfg["offsets"].get(self.song["path"], 0.0)
         self.melody, self.chorus = self.cfg["melody"], self.cfg["chorus"]
         self.phase, self.rev = "prep", self.rev + 1
         self.intro_until = time.time() + self.cfg["intro"]
@@ -154,6 +155,20 @@ class Engine:
             if self.phase in ("playing", "paused"):
                 self.mpv.set("speed", self.tempo)
 
+    def set_sync(self, value=None, delta=0.0):
+        """Shift this song's lyrics later (+) or earlier (-); remembered per file."""
+        with self.lock:
+            if not self.song:
+                return
+            v = delta + self.lyric_offset if value is None else value
+            self.lyric_offset = round(max(-60.0, min(60.0, float(v))), 2)
+            offsets = self.cfg["offsets"]
+            if self.lyric_offset:
+                offsets[self.song["path"]] = self.lyric_offset
+            else:
+                offsets.pop(self.song["path"], None)
+            config.save(self.cfg)
+
     def toggle(self, layer):
         with self.lock:
             if not (self.prep and self.prep["layers"].get(layer)):
@@ -175,7 +190,7 @@ class Engine:
             phase, prep = self.phase, self.prep
             s = {
                 "phase": phase, "song": self.song, "rev": self.rev, "error": self.error,
-                "key": self.key, "tempo": self.tempo, "melody": self.melody, "chorus": self.chorus,
+                "key": self.key, "tempo": self.tempo, "lyric_offset": self.lyric_offset, "melody": self.melody, "chorus": self.chorus,
                 "volume": self.cfg["volume"], "kind": self.song["kind"] if self.song else None,
                 "caps": {"melody": bool(prep and prep["layers"].get("melody")),
                          "chorus": bool(prep and prep["layers"].get("chorus"))},

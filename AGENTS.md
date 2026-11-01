@@ -12,6 +12,6 @@ Start here when something is wrong. Do not ask the user to reopen or reproduce f
 Gotchas
 - The server quits ~3 s after the display window closes (page sends a beacon) and after 120 s without display polls, but never if no display was ever seen (`--no-ui`). Headless screenshots therefore end the server unless something keeps polling `/api/state?d=1`.
 - Hyprland here uses the Lua dispatch API (`hyprctl dispatch 'hl.dsp.window.close({ window = "address:0x.." })'`); old `dispatch exec [rule] cmd` syntax fails.
-- Never `pkill -f kuraoke` / `pkill mpv`: it matches other processes (the user runs their own mpv). Kill by PID from `ss -ltnp | grep :8890`.
+- Never `pkill -f kuraoke` / `pkill mpv`, and never kill by process name (`awk ... /kuraoke_kami/`): that also matches the user's **running app**. Check `ss -ltn | grep :8890` before every test; start test servers with `& echo $!` and kill exactly that PID (test ports 188xx, never 8890).
 - `songs/` holds the user's own files and is git-ignored. Do not commit or upload them.
 - Pushing to `main` is blocked by the user's pre-push hook until they approve it.

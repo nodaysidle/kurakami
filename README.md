@@ -100,6 +100,7 @@ Click the window once, then:
 | `0-9` `Enter` | reserve by number | `+` / `-` | key up / down (±12 semitones) |
 | `Space` | pause / skip intro | `[` / `]` | tempo slower / faster (50–150 %) |
 | `N` | next song | `M` / `C` | melody / chorus on / off |
+| `,` / `.` | lyrics earlier / later (±0.25 s; `<` `>` ±2 s) | | saved per song |
 | `R` | restart | `↑` / `↓` | volume |
 | `/` | song book | `Q` `S` | queue / settings |
 | `F` | fullscreen | `Tab` `H` `Esc` | menu / key help / close |
