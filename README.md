@@ -45,8 +45,16 @@ Download songs → Settings → Import (or `karaokeimp`, or just drop files in a
 
 <table>
   <tr>
-    <td width="50%" align="center"><img src="docs/screenshots/idle.png" alt="Idle screen: Type a song number, song count, song book hint"></td>
-    <td width="50%" align="center"><img src="docs/screenshots/intro.png" alt="Intro screen with song number, title, artist and countdown bar"></td>
+    <td width="50%" align="center"><img src="docs/screenshots/idle.png" alt="Idle screen: song number 1003 typed, the matching song previewed under it"><br><sub>Type a number: the song shows before you press Enter</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/intro.png" alt="Intro screen with song number, title, artist and countdown bar"><br><sub>Intro with countdown</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/songbook.png" alt="Song book panel with search, language chip, Missing lyrics filter and lyrics marks"><br><sub>Song book (<code>/</code>): search, filters, lyrics marks</sub></td>
+    <td align="center"><img src="docs/screenshots/find-lyrics.png" alt="Find lyrics dialog with artist, title, search and Time with speech recognition"><br><sub>Find lyrics (<code>L</code>) and speech-recognition timing</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/sync.png" alt="Tap-to-sync: one lyric line large, with arrows to choose a line"><br><sub>Tap-to-sync (<code>T</code>)</sub></td>
+    <td align="center"><img src="docs/screenshots/settings.png" alt="Settings panel: General, Library, Import"><br><sub>Settings (<code>S</code>): library, import, diagnostics</sub></td>
   </tr>
 </table>
 
