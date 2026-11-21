@@ -3,131 +3,284 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0b0c">
 <title>Kuraoke Kami</title>
 <link rel="stylesheet" href="/static/style.css">
 <script>/*BOOT*/</script>
 </head>
-<body>
-<!-- ============ STAGE (TV / display window) ============ -->
-<div id="stage" hidden>
-  <video id="vid" muted playsinline></video>
-  <canvas id="cdg" width="300" height="216"></canvas>
-  <div id="lyrics"><div class="ln" id="l0"></div><div class="ln" id="l1"></div></div>
-  <div id="dots"></div>
-  <div id="intro">
-    <div class="num" id="i-num"></div>
+<body class="display">
+
+<svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7.5 4.6v14.8L19.4 12z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9.5 4.8v14.4M14.5 4.8v14.4"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M6.5 4.6v14.8L16.4 12z"/><path d="M18.5 4.8v14.4"/></symbol>
+  <symbol id="i-restart" viewBox="0 0 24 24"><path d="M3.4 12a8.6 8.6 0 1 0 2.8-6.3"/><path d="M3 3.6v5h5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-top" viewBox="0 0 24 24"><path d="M5 3h14"/><path d="M12 21V8.5"/><path d="m6.8 13.6 5.2-5.2 5.2 5.2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.8"/><path d="m16.1 16.1 4.4 4.4"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5.2l11-2v12.6"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="15.8" r="3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 4.4 2.7 18a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0z"/><path d="M12 9.6v4.3M12 17.2v.1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4.5 12.6 5 5L20 6.6"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20.4 12a8.4 8.4 0 0 1-14.4 6"/><path d="M3.6 12a8.4 8.4 0 0 1 14.4-6"/><path d="M18.6 2.8v4h-4M5.4 21.2v-4h4"/></symbol>
+  <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="m14.5 5-7 7 7 7"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="m9.5 5 7 7-7 7"/></symbol>
+</svg>
+
+<!-- ======================================================== STAGE (the TV window) -->
+<div id="stage" data-phase="idle">
+
+  <video id="vid" muted playsinline hidden aria-hidden="true"></video>
+  <canvas id="cdg" width="300" height="216" hidden aria-hidden="true"></canvas>
+
+  <!-- idle / attract -->
+  <section id="idle">
+    <div class="numslot">
+      <div class="numbox stack">
+        <input id="numin" class="numinput" type="text" inputmode="numeric" autocomplete="off" required
+               maxlength="8" aria-label="Song number" data-i18n-aria="song_number">
+        <label class="prompt numprompt" for="numin" data-i18n="type_number"></label>
+      </div>
+      <div id="preview" class="preview" role="status" aria-live="polite"></div>
+    </div>
+    <aside class="idle-side">
+      <h2 class="side-title" id="idle-side-title" data-i18n="up_next"></h2>
+      <ol id="idle-queue" class="idle-queue" hidden></ol>
+      <p id="idle-count" class="idle-count"></p>
+      <p id="idle-browse" class="idle-browse" data-i18n="browse_hint"></p>
+    </aside>
+    <p class="stage-foot" data-i18n="shortcuts_hint"></p>
+  </section>
+
+  <!-- intro -->
+  <section id="intro" hidden>
+    <p class="intro-num" id="i-num"></p>
     <h1 id="i-title"></h1>
-    <h2 id="i-artist"></h2>
-    <div class="up" id="i-next"></div>
+    <p class="intro-artist" id="i-artist"></p>
+    <div class="intro-track" aria-hidden="true"><div id="i-fill"></div></div>
+    <p class="intro-note" id="i-note" hidden></p>
+    <p class="intro-next" id="i-next"></p>
+  </section>
+
+  <!-- lyrics -->
+  <section id="lyrics" hidden>
+    <div class="ln" id="l0"></div>
+    <div class="ln" id="l1"></div>
+  </section>
+  <div id="dots" hidden aria-hidden="true"></div>
+
+  <!-- tap-to-sync -->
+  <section id="sync" hidden role="group" aria-label="Tap to sync" data-i18n-aria="sync_title">
+    <p class="sync-pos" id="sync-pos"></p>
+    <p class="sync-near" id="sync-prev"></p>
+    <p class="sync-target" id="sync-line"></p>
+    <p class="sync-near" id="sync-next"></p>
+    <p class="sync-hint"><span data-i18n="sync_hint"></span></p>
+  </section>
+
+  <!-- error -->
+  <section id="error" hidden role="alert">
+    <svg class="ic error-ic" aria-hidden="true"><use href="#i-alert"/></svg>
+    <h1 data-i18n="error_title"></h1>
+    <p id="error-msg"></p>
+    <p class="muted" id="error-skip"></p>
+  </section>
+
+  <!-- transient status, top right -->
+  <div id="stage-corner">
+    <p id="hud-toast" role="status"></p>
+    <p id="entry-pill" hidden><span id="pill-digits"></span></p>
   </div>
-  <div id="idle">
-    <h1>KURAOKE&nbsp;KAMI</h1>
-    <p data-i18n="idle_hint"></p>
-    <pre class="keys" id="idle-keys"></pre>
-    <div id="idle-remote"><img id="qr" alt=""><div><span data-i18n="remote_use"></span><code id="idle-url"></code></div></div>
-  </div>
-  <div id="hud">
-    <div id="chips"></div>
-    <div id="nextbar"></div>
-  </div>
-  <pre class="keys" id="keyhelp" hidden></pre>
-  <div id="entry"></div>
-  <div id="error"></div>
+
+  <!-- bottom strip -->
+  <footer id="stagebar" hidden>
+    <div class="pbar" aria-hidden="true"><div id="pfill"></div></div>
+    <div class="bar-main">
+      <div class="transport">
+        <button type="button" class="icon ghost" id="t-restart" aria-label="Restart" data-i18n-aria="restart" data-i18n-title="restart"><svg class="ic" aria-hidden="true"><use href="#i-restart"/></svg></button>
+        <button type="button" class="icon ghost" id="t-pause" aria-label="Pause" data-i18n-aria="pause" data-i18n-title="pause"><svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg></button>
+        <button type="button" class="icon ghost" id="t-next" aria-label="Next song" data-i18n-aria="next" data-i18n-title="next"><svg class="ic" aria-hidden="true"><use href="#i-next"/></svg></button>
+      </div>
+      <p class="ptimes"><span id="elapsed">0:00</span> <span class="muted" aria-hidden="true">/</span> <span id="remaining">-0:00</span></p>
+      <p id="bar-next" class="bar-next"></p>
+    </div>
+  </footer>
+
+  <p id="offline" hidden role="status"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg><span data-i18n="offline"></span></p>
 </div>
 
-<!-- ============ PANEL APP (remote page + menu on the display) ============ -->
-<div id="app">
-  <header>
-    <div id="np"><b id="np-t"></b><span id="np-a"></span></div>
-    <button class="x" id="close" data-i18n-title="close">✕</button>
+<!-- ======================================================== SONGS drawer -->
+<aside id="drawer" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
+  <header class="sheet-head">
+    <h2 id="drawer-title" data-i18n="songs_title"></h2>
+    <div class="searchbox">
+      <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+      <div class="stack">
+        <input id="q" type="search" autocomplete="off" role="combobox" aria-expanded="true" required
+               aria-controls="songs" aria-autocomplete="list" aria-label="Search" data-i18n-aria="search_label">
+        <label class="prompt" for="q" data-i18n="search_ph"></label>
+      </div>
+    </div>
+    <button type="button" class="icon ghost" id="drawer-close" aria-label="Close" data-i18n-aria="close" data-i18n-title="close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
   </header>
-  <main>
-    <section id="p-sing">
-      <div class="bar"><div id="bar-fill"></div></div>
-      <div class="row big">
-        <button data-a="restart" data-i18n-title="restart">⟲</button>
-        <button data-a="pause" id="b-pause">⏯</button>
-        <button data-a="next" data-i18n-title="next">⏭</button>
-      </div>
-      <div class="ctl">
-        <label data-i18n="key"></label>
-        <button data-a="key" data-d="-1">−</button><output id="o-key"></output><button data-a="key" data-d="1">+</button><button data-a="key" data-v="0" class="sm">0</button>
-        <label data-i18n="tempo"></label>
-        <button data-a="tempo" data-d="-0.05">−</button><output id="o-tempo"></output><button data-a="tempo" data-d="0.05">+</button><button data-a="tempo" data-v="1" class="sm">100</button>
-        <label data-i18n="lyrics"></label>
-        <button data-a="sync" data-d="-0.25">−</button><output id="o-sync"></output><button data-a="sync" data-d="0.25">+</button><button data-a="sync" data-v="0" class="sm">0</button>
-        <span></span>
-        <button data-a="sync" data-d="-2">−2</button><output class="muted">±2 s</output><button data-a="sync" data-d="2">+2</button><span></span>
-        <label data-i18n="volume"></label>
-        <button data-a="volume" data-d="-5">−</button><output id="o-vol"></output><button data-a="volume" data-d="5">+</button><span></span>
-      </div>
-      <div class="row">
-        <button class="tog" data-a="melody" id="b-melody"></button>
-        <button class="tog" data-a="chorus" id="b-chorus"></button>
-        <button data-a="fullscreen" data-i18n="fullscreen"></button>
-      </div>
-      <form id="numform" class="row"><input id="numin" inputmode="numeric" pattern="[0-9]*" data-i18n-ph="song_number"><button data-i18n="reserve"></button></form>
-    </section>
+  <div class="filters">
+    <div id="facets-langs" class="chips" role="group" aria-label="Language filters" data-i18n-aria="s_filters_lang"></div>
+    <button type="button" class="chip" id="missing-toggle" aria-pressed="false"></button>
+  </div>
+  <ul id="songs" class="songlist" role="listbox" aria-label="Song book" data-i18n-aria="songs_title"></ul>
+  <p id="song-status" class="sr-only" aria-live="polite"></p>
+  <div class="sheet-foot">
+    <button type="button" class="secondary" id="more" hidden data-i18n="more"></button>
+    <p class="hint" data-i18n="drawer_hint"></p>
+  </div>
+</aside>
 
-    <section id="p-songs" hidden>
-      <input id="q" type="search" data-i18n-ph="search" autocomplete="off">
-      <div id="facets"></div>
-      <ul id="songs"></ul>
-      <button id="more" hidden data-i18n="more"></button>
-    </section>
+<!-- ======================================================== QUEUE -->
+<aside id="queue-panel" class="sheet narrow" hidden role="dialog" aria-modal="true" aria-labelledby="queue-title" tabindex="-1">
+  <header class="sheet-head">
+    <h2 id="queue-title" data-i18n="queue"></h2>
+    <button type="button" class="icon ghost" id="queue-close" aria-label="Close" data-i18n-aria="close" data-i18n-title="close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </header>
+  <ol id="queue" class="qlist"></ol>
+  <p id="queue-empty" class="muted pad" data-i18n="empty_queue"></p>
+  <div class="sheet-foot row">
+    <button type="button" class="secondary" id="queue-clear" data-i18n="clear_queue"></button>
+  </div>
+</aside>
 
-    <section id="p-queue" hidden>
-      <ol id="queue"></ol>
-      <button data-a="clear" data-i18n="clear_queue"></button>
-    </section>
+<!-- ======================================================== SETTINGS -->
+<aside id="settings-panel" class="sheet wide" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1">
+  <header class="sheet-head">
+    <h2 id="settings-title" data-i18n="settings"></h2>
+    <button type="button" class="icon ghost" id="settings-close" aria-label="Close" data-i18n-aria="close" data-i18n-title="close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </header>
+  <div class="sheet-body">
 
-    <section id="p-set" hidden>
+    <section>
       <h3 data-i18n="s_general"></h3>
-      <label class="f"><span data-i18n="language"></span>
+      <label class="field"><span data-i18n="language"></span>
         <select id="s-lang"><option value="en">English</option><option value="tl">Tagalog</option></select></label>
-      <label class="f"><span data-i18n="dedupe"></span><input type="checkbox" id="s-dedupe"></label>
-      <label class="f"><span data-i18n="intro_secs"></span><input type="number" id="s-intro" min="0" max="30"></label>
-      <button data-a="quit" class="warn" data-i18n="quit"></button>
-      <label class="f"><span data-i18n="soundfont"></span><input id="s-sf" placeholder="/usr/share/soundfonts/FluidR3_GM.sf2"></label>
+      <label class="field"><span data-i18n="intro_secs"></span>
+        <input type="number" id="s-intro" min="0" max="30" step="1"></label>
+      <label class="check"><input type="checkbox" id="s-dedupe"><span data-i18n="dedupe"></span></label>
+    </section>
 
-      <h3 data-i18n="s_filters"></h3>
-      <div id="s-langs" class="chips"></div>
-      <div id="s-countries" class="chips"></div>
-
-      <h3 data-i18n="s_folders"></h3>
-      <ul id="folders"></ul>
-      <form id="addfolder" class="grid">
-        <input name="path" required data-i18n-ph="folder_path">
-        <input name="start" type="number" min="1" value="1" data-i18n-ph="start_no" title="start">
-        <input name="lang" data-i18n-ph="lang_code" size="6">
-        <input name="country" data-i18n-ph="country_code" size="6">
-        <button data-i18n="add_folder"></button>
+    <section>
+      <h3 data-i18n="s_library"></h3>
+      <ul id="folders" class="folders"></ul>
+      <form id="addfolder" class="addform" autocomplete="off">
+        <label class="field span-all"><span data-i18n="folder_path"></span>
+          <input name="path" required autocomplete="off"></label>
+        <label class="field"><span data-i18n="start_no"></span>
+          <input name="start" id="f-start" type="number" min="1" step="1" inputmode="numeric"></label>
+        <label class="field"><span data-i18n="lang_code"></span>
+          <input name="lang" maxlength="8" autocomplete="off"></label>
+        <label class="field"><span data-i18n="country_code"></span>
+          <input name="country" maxlength="8" autocomplete="off"></label>
+        <div class="row span-all"><button type="submit" class="primary" data-i18n="add_folder"></button></div>
       </form>
       <div class="row">
-        <button data-a="scan" data-rebuild="0" data-i18n="rescan"></button>
-        <button data-a="scan" data-rebuild="1" class="warn" data-i18n="rebuild"></button>
+        <button type="button" class="secondary" id="scan-btn" data-i18n="rescan"></button>
+        <span id="scanmsg" class="muted" role="status"></span>
       </div>
-      <p id="scanmsg" class="muted"></p>
-
-      <h3 data-i18n="s_remote"></h3>
-      <label class="f"><span data-i18n="remote_on"></span><input type="checkbox" id="s-remote"></label>
-      <p class="muted" data-i18n="remote_note"></p>
-      <code id="remote-url"></code>
-      <h3 data-i18n="s_diag"></h3>
-      <button id="run-doctor" data-i18n="run_checks"></button>
-      <pre id="doctor-out"></pre>
-      <h3 data-i18n="s_keys"></h3>
-      <pre id="keys"></pre>
     </section>
-  </main>
-  <nav>
-    <button data-tab="sing" data-i18n="t_sing"></button>
-    <button data-tab="songs" data-i18n="t_songs"></button>
-    <button data-tab="queue" id="t-queue"></button>
-    <button data-tab="set" data-i18n="t_set"></button>
-  </nav>
+
+    <section>
+      <h3 data-i18n="s_import"></h3>
+      <label class="field"><span data-i18n="inbox_folder"></span>
+        <input id="s-inbox" autocomplete="off" spellcheck="false"></label>
+      <div class="row">
+        <button type="button" class="secondary" id="inbox-check" data-i18n="check_inbox"></button>
+        <button type="button" class="primary" id="inbox-import" data-i18n="import_selected"></button>
+      </div>
+      <p id="inbox-dest" class="muted"></p>
+      <ul id="inbox-list" class="inboxlist"></ul>
+      <p id="inbox-empty" class="muted" hidden></p>
+      <p id="inbox-skipped" class="muted" hidden></p>
+      <p id="import-status" class="muted" role="status"></p>
+      <pre id="import-log" class="log" hidden></pre>
+    </section>
+
+    <section>
+      <h3 data-i18n="s_audio"></h3>
+      <label class="field"><span data-i18n="soundfont"></span>
+        <input id="s-sf" autocomplete="off" spellcheck="false"></label>
+    </section>
+
+    <section>
+      <h3 data-i18n="s_diag"></h3>
+      <div class="row"><button type="button" class="secondary" id="run-doctor" data-i18n="run_checks"></button></div>
+      <pre id="doctor-out" class="log"></pre>
+    </section>
+
+    <section>
+      <h3 data-i18n="s_keys"></h3>
+      <table class="keys"><tbody id="keys-table"></tbody></table>
+    </section>
+
+    <section class="advanced">
+      <h3 data-i18n="s_advanced"></h3>
+      <p class="muted" data-i18n="rebuild_note"></p>
+      <div class="row rebuild">
+        <label class="field"><span data-i18n="rebuild_word"></span>
+          <input id="rebuild-word" autocomplete="off" spellcheck="false"></label>
+        <button type="button" class="danger" id="rebuild-btn" disabled data-i18n="rebuild_btn"></button>
+      </div>
+      <div class="row"><button type="button" class="danger" id="quit-btn" data-i18n="quit"></button></div>
+    </section>
+
+  </div>
+</aside>
+
+<!-- ======================================================== FIND LYRICS -->
+<div id="lyrics-dialog" class="overlay" hidden>
+  <form class="panel" id="lyrics-form" role="dialog" aria-modal="true" aria-labelledby="ld-heading">
+    <header class="panel-head">
+      <h2 id="ld-heading" data-i18n="find_lyrics"></h2>
+      <button type="button" class="icon ghost" id="ld-close" aria-label="Close" data-i18n-aria="close" data-i18n-title="close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </header>
+    <p id="ld-song" class="muted"></p>
+    <div class="grid2">
+      <label class="field"><span data-i18n="artist"></span><input id="ld-artist" autocomplete="off" spellcheck="false"></label>
+      <label class="field"><span data-i18n="title"></span><input id="ld-title-input" autocomplete="off" spellcheck="false"></label>
+    </div>
+    <div class="row">
+      <button type="submit" class="primary" id="ld-search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span data-i18n="search"></span></button>
+    </div>
+    <p id="ld-status" class="status" role="status"></p>
+    <ul id="ld-results" class="candidates"></ul>
+  </form>
 </div>
-<div id="toast"></div>
+
+<!-- ======================================================== CONFIRM -->
+<div id="confirm-dialog" class="overlay" hidden>
+  <div class="panel small" role="dialog" aria-modal="true" aria-labelledby="cd-title" aria-describedby="cd-msg">
+    <header class="panel-head"><h2 id="cd-title"></h2></header>
+    <p id="cd-msg" class="muted"></p>
+    <div class="row end">
+      <button type="button" class="secondary" id="cd-no" data-i18n="cancel"></button>
+      <button type="button" class="danger" id="cd-yes" data-i18n="remove"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== SHORTCUTS -->
+<div id="help" class="overlay" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <header class="panel-head">
+      <h2 id="help-title" data-i18n="s_keys"></h2>
+      <button type="button" class="icon ghost" id="help-close" aria-label="Close" data-i18n-aria="close" data-i18n-title="close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </header>
+    <table class="keys"><tbody id="help-table"></tbody></table>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite">
+  <span id="toast-msg"></span>
+  <button type="button" class="ghost sm" id="toast-undo" hidden><svg class="ic" aria-hidden="true"><use href="#i-restart"/></svg><span data-i18n="undo"></span></button>
+</div>
+
 <script src="/static/i18n.js"></script>
 <script src="/static/lyricpage.js"></script>
 <script src="/static/cdg.js"></script>

@@ -34,12 +34,9 @@ def main():
             raise
         print(f"Already running on port {cfg['port']}; opening the screen.")
         return open_ui(cfg["port"])
-    log.log.info("started on port %s (remote=%s)", cfg["port"], cfg["remote"])
+    log.log.info("started on port %s", cfg["port"])
     atexit.register(app.engine.mpv.close)
     print(f"Kuraoke Kami on http://127.0.0.1:{cfg['port']}/")
-    if cfg["remote"]:
-        print(f"Phone remote: {app.remote_url()}")
-        print(f"  (if the phone can't connect: sudo ufw allow {cfg['port']}/tcp)")
     if "--no-ui" not in sys.argv:
         open_ui(cfg["port"])
     try:

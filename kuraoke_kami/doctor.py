@@ -20,20 +20,25 @@ def _first_line(cmd):
         return ""
 
 
+def _lyric_counts():
+    """(songs with no lyrics at all, songs whose lyrics may be out of sync)."""
+    rows, _ = library.query(missing=True, limit=100000)
+    return sum(r["lyrics"] == "none" for r in rows), sum(r["lyrics"] == "suspect" for r in rows)
+
+
 def checks(cfg, engine=None):
     out = []
     add = lambda st, name, detail="": out.append((st, name, detail))
     add(OK, "python", sys.version.split()[0])
     for tool, flag in (("mpv", "--version"), ("ffmpeg", "-version"), ("ffprobe", "-version"), ("fluidsynth", "--version")):
         add(OK if shutil.which(tool) else BAD, tool, _first_line([tool, flag]) if shutil.which(tool) else f"missing: sudo pacman -S {tool}")
-    add(OK if shutil.which("qrencode") else WARN, "qrencode", "" if shutil.which("qrencode") else "optional (QR code on the TV): sudo pacman -S qrencode")
     try:
         add(OK, "SoundFont (MIDI)", find_soundfont(cfg))
     except RuntimeError as e:
         add(WARN, "SoundFont (MIDI)", str(e))
     browser = shutil.which("omarchy-launch-webapp") or shutil.which("helium-browser") or shutil.which("chromium")
     add(OK if browser else BAD, "app window launcher", browser or "need omarchy-launch-webapp or a Chromium-based browser")
-    add(OK if shutil.which("hyprctl") else WARN, "hyprctl", "" if shutil.which("hyprctl") else "fullscreen / close from the remote need Hyprland")
+    add(OK if shutil.which("hyprctl") else WARN, "hyprctl", "" if shutil.which("hyprctl") else "fullscreen / close need Hyprland")
     # audio
     pa = _first_line(["pactl", "info"]) if shutil.which("pactl") else ""
     add(OK if pa else WARN, "audio server", _first_line(["sh", "-c", "pactl info | grep 'Server Name'"]) or "pactl not answering")
@@ -41,6 +46,11 @@ def checks(cfg, engine=None):
     try:
         f = library.facets()
         add(OK if f["total"] else WARN, "song book", f"{f['total']} songs" if f["total"] else "empty: Settings -> add a folder -> Scan")
+        if f["total"]:
+            without, suspect = _lyric_counts()
+            add(WARN if without or suspect else OK, "lyrics", f"{without} songs without lyrics, {suspect} suspect")
+        else:
+            add(OK, "lyrics", "no songs yet")
     except Exception as e:
         add(BAD, "song book", f"database error: {e}")
     for fo in cfg["folders"]:
@@ -56,9 +66,6 @@ def checks(cfg, engine=None):
             sock.settimeout(0.5)
             up = sock.connect_ex(("127.0.0.1", port)) == 0
         add(OK if up else WARN, "server", f"answering on port {port}" if up else f"not running (it starts when you open Kuraoke Kami)")
-    ufw = _first_line(["systemctl", "is-active", "ufw"]) if shutil.which("systemctl") else ""
-    if cfg["remote"] and ufw == "active":
-        add(WARN, "firewall", f"ufw is active: phones need `sudo ufw allow {port}/tcp` (ignore if you already did)")
     # leftovers
     run = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
     stale = [p.name for p in Path(run).glob("kuraoke-kami-mpv-*.sock") if not Path("/proc", p.name.split("-")[-1].split(".")[0]).exists()]

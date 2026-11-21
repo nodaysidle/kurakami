@@ -1,4 +1,4 @@
-"""HTTP server: serves the web UI, a small JSON API (also used by phone remotes) and range-capable media."""
+"""HTTP server: serves the web UI, a small JSON API and range-capable media. Loopback only, one TV window."""
 import hmac
 import json
 import mimetypes
@@ -13,33 +13,31 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import config, doctor, library
+from . import config, doctor, library, lrclib
+from .engine import Engine, write_lrc
 from .log import log
-from .engine import Engine
+from .lyrics import lrc_set_offset
 
 WEB = Path(__file__).resolve().parent.parent / "web"
 MEDIA_TYPES = {"video": None, "cdg": "application/octet-stream"}
 
 
-def lan_ip():
+def _sid(b):
+    """The song id in a POST body, or None."""
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("10.255.255.255", 1))  # no packet is sent; just picks the outgoing interface
-        return s.getsockname()[0]
-    except OSError:
-        return "127.0.0.1"
+        return int(b.get("id"))
+    except (TypeError, ValueError):
+        return None
 
 
 class App:
     def __init__(self, cfg):
         self.cfg, self.engine = cfg, Engine(cfg)
-        self.scan = {"running": False, "count": 0, "error": ""}
+        self.scan = {"running": False, "count": 0, "error": "", "rev": 0, "importing": False, "log": []}
         self.httpd = None
         self.display_last = self.display_closing = 0.0   # the TV window polls with d=1; 0.0 = never seen
-        self.host_ok = {"localhost", "127.0.0.1", "::1", lan_ip(), socket.gethostname().lower()}
-
-    def remote_url(self):
-        return f"http://{lan_ip()}:{self.cfg['port']}/?t={self.cfg['token']}"
+        self.host_ok = {"localhost", "127.0.0.1", "::1", socket.gethostname().lower()}
+        self.hits = {}                                   # song id -> {dur, hits}: the last lyrics_search
 
     # -------------------------------------------------------------- scanning
     def start_scan(self, rebuild=False):
@@ -49,12 +47,61 @@ class App:
 
         def go():
             try:
-                library.scan(self.cfg, rebuild, lambda n: self.scan.update(count=n))
+                library.scan(self.cfg, rebuild=rebuild, progress=lambda n: self.scan.update(count=n), renamed=self._renamed)
             except Exception as e:
                 log.exception("scan failed")
                 self.scan["error"] = str(e)
             self.scan["running"] = False
+            self.scan["rev"] += 1   # the song book reloads when this changes
         threading.Thread(target=go, daemon=True).start()
+
+    def _renamed(self, old, new):
+        """A rename keeps the song's number: keep the config offset (songs without an .lrc) with it too."""
+        offsets = self.cfg["offsets"]
+        if old in offsets:
+            offsets[new] = offsets.pop(old)
+            config.save(self.cfg)
+
+    def folder_signature(self):
+        """Cheap change detector: directory mtimes only (adding or removing a file touches its directory)."""
+        sig = []
+        for fo in self.cfg["folders"]:
+            for dp, dirs, _ in os.walk(fo["path"]):
+                dirs.sort()
+                try:
+                    sig.append((dp, os.stat(dp).st_mtime))
+                except OSError:
+                    pass
+        return sig
+
+    def watch_folders(self):
+        """Rescan ~10 s after songs land in a folder or leave it (stdlib only, no inotify)."""
+        sig = self.folder_signature()
+        while True:
+            time.sleep(10)
+            new = self.folder_signature()
+            if new == sig or self.scan["running"]:
+                continue
+            sig = new
+            self.start_scan()
+
+    def migrate_offsets(self):
+        """One-shot: move every config offset into the song's .lrc as the standard [offset:] tag."""
+        offsets, changed = self.cfg["offsets"], False
+        for path, sec in list(offsets.items()):
+            f = library.lrc_for(path)
+            if not f:
+                continue  # MIDI/KAR/Chorus/CDG keep the config fallback
+            try:
+                if sec:
+                    write_lrc(f, lrc_set_offset(f.read_text(errors="replace"), float(sec)))
+                    log.info("lyric offset %+.2f s moved into %s", float(sec), f)
+                offsets.pop(path, None)
+                changed = True
+            except OSError:
+                log.exception("could not write %s", f)
+        if changed:
+            config.save(self.cfg)
 
     # -------------------------------------------------------------- display window lifetime
     def watch_display(self):
@@ -63,7 +110,7 @@ class App:
         while True:
             time.sleep(1)
             if not self.display_last:
-                continue  # never had a window (--no-ui, phone only): keep running
+                continue  # never had a window (--no-ui): keep running
             now = time.time()
             if (self.display_closing and now - self.display_closing > 3) or now - self.display_last > 120:
                 return self.quit(close_window=False)
@@ -91,6 +138,104 @@ class App:
         return self.hypr_window('hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle", window = "address:%s" })',
                                 "dispatch focuswindow address:%s ; dispatch fullscreen 0")
 
+    # -------------------------------------------------------------- lyrics: find + pick
+    def lyrics_search(self, b):
+        """Ranked lrclib matches for one song. Network + ffprobe: no engine lock is held here."""
+        sid = _sid(b)
+        song = library.get(song_id=sid) if sid is not None else None
+        if not song:
+            return {"ok": False, "error": "notfound", "candidates": []}
+        artist = str(b.get("artist") or song["artist"] or "").strip()
+        title = str(b.get("title") or song["title"] or "").strip()
+        try:
+            dur = lrclib.length(song["path"])
+        except (OSError, subprocess.SubprocessError):
+            dur = 0.0
+        hits, err = lrclib.candidates(artist, title, dur)
+        self.hits[song["id"]] = {"dur": dur, "hits": hits}   # the full lyrics stay here, not in the response
+        return {"ok": err is None, "error": err, "candidates": [
+            {"idx": i, "artist": h.get("artist"), "title": h.get("title"), "album": h.get("album"),
+             "duration": h.get("duration"), "delta": h.get("delta"), "synced": h.get("synced"),
+             "preview": h.get("preview") or []}
+            for i, h in enumerate(hits)]}
+
+    def lyrics_save(self, b):
+        """Write the picked candidate into the song's .lrc (atomic, one .lrc.bak copy) and refresh the row."""
+        sid = _sid(b)
+        song, hit = (library.get(song_id=sid) if sid is not None else None), self.hits.get(sid)
+        if not song:
+            return {"ok": False, "error": "notfound"}
+        if not hit:
+            return {"ok": False, "error": "search first"}
+        try:
+            cand = hit["hits"][int(b.get("idx", 0))]
+        except (TypeError, ValueError, IndexError):
+            return {"ok": False, "error": "no such candidate"}
+        target = library.lrc_for(song["path"]) or library.lrc_target(song["path"])
+        bak = target.with_name(target.name + ".bak")
+        if target.exists() and not bak.exists():   # keep what the user had, but only the first time
+            try:
+                write_lrc(bak, target.read_text(errors="replace"))
+            except OSError:
+                log.exception("could not back up %s", target)
+        write_lrc(target, lrclib.to_lrc(cand, hit["dur"]))
+        library.refresh(song["path"])
+        self.engine.reload_lyrics(song["id"])
+        return {"ok": True, "status": library.lyrics_status(song["path"], song["kind"])}
+
+    # -------------------------------------------------------------- inbox (downloads -> library)
+    @staticmethod
+    def _inbox_path(cfg):
+        return Path(str(cfg.get("inbox") or "~/Downloads")).expanduser()
+
+    def inbox(self):
+        """What `karaokeimp` would do with the inbox folder, as data for the Inbox page."""
+        from . import importer
+        inbox = self._inbox_path(self.cfg)
+        try:
+            groups, skipped = importer.plan(inbox)
+        except OSError as e:
+            log.warning("inbox %s: %s", inbox, e)
+            groups, skipped = [], []
+        return {"inbox": str(inbox), "dest": str(importer.default_dest(self.cfg)),
+                "groups": [{"name": g["name"], "kind": g.get("kind", "song"), "has_lrc": bool(g.get("has_lrc")),
+                            "files": [Path(f).name for f in g["files"]]} for g in groups],
+                "skipped": [Path(str(s)).name for s in skipped]}
+
+    def inbox_import(self, b):
+        """Copy the picked groups into the library in the background; progress shows in app.scan."""
+        from . import importer
+        if self.scan["importing"]:
+            return {"ok": False, "error": "busy"}
+        names = {str(n) for n in b.get("names") or []}
+        try:
+            groups, _ = importer.plan(self._inbox_path(self.cfg))
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        picked = [g for g in groups if str(g["name"]) in names]
+        if not picked:
+            return {"ok": False, "error": "nothing selected"}
+        self.scan.update(importing=True, log=[])
+
+        def say(msg):
+            self.scan["log"] = (self.scan["log"] + [str(msg)])[-30:]
+
+        def go():
+            try:
+                got = importer.import_groups(picked, importer.default_dest(self.cfg), cfg=self.cfg, say=say)
+                if got:
+                    say(f"imported {len(got)}: " + ", ".join(got))
+                else:
+                    say("nothing imported")
+            except Exception as e:
+                log.exception("inbox import failed")
+                say(f"error: {e}")
+            finally:
+                self.scan["importing"] = False
+                self.start_scan()
+        threading.Thread(target=go, daemon=True).start()
+        return {"ok": True}
+
     # -------------------------------------------------------------- POST /api/<action>
     def act(self, name, b):
         e, cfg = self.engine, self.cfg
@@ -111,6 +256,12 @@ class App:
         elif name in ("melody", "chorus"): e.toggle(name)
         elif name == "volume": e.set_volume(b.get("value", cfg["volume"]) if "delta" not in b else cfg["volume"] + int(b["delta"]))
         elif name == "sync": e.set_sync(b.get("value"), float(b.get("delta", 0)))
+        elif name == "sync_line":
+            off = e.sync_line(int(b.get("line", -1)))
+            return {"ok": off is not None, "offset": off}
+        elif name == "lyrics_search": return self.lyrics_search(b)
+        elif name == "lyrics_save": return self.lyrics_save(b)
+        elif name == "inbox_import": return self.inbox_import(b)
         elif name == "fullscreen": return {"ok": self.fullscreen()}
         elif name == "display_closed": self.display_closing = time.time()
         elif name == "quit": self.quit()
@@ -174,9 +325,9 @@ def handler(app):
         def do_GET(self):
             u = urlparse(self.path); q = parse_qs(u.query); p = u.path
             if not self.host_ok(): return self.send(403, "bad host")
-            loop = self.client_address[0] in ("127.0.0.1", "::1")
             if p == "/":
-                if not (loop or self.authed(q)): return self.send(403, "Open the remote link shown on the TV (it contains the access token).")
+                if self.client_address[0] not in ("127.0.0.1", "::1"):
+                    return self.send(403, "Kuraoke Kami runs its screen on this machine.")
                 page = (WEB / "index.html").read_text()
                 boot = json.dumps({"token": app.cfg["token"], "display": "display" in q})
                 return self.send(200, page.replace("/*BOOT*/", f"window.KK={boot};"), "text/html; charset=utf-8")
@@ -190,17 +341,17 @@ def handler(app):
                 if "d" in q:
                     app.display_last, app.display_closing = time.time(), 0.0
                 s = e.state()
-                s.update(scan=app.scan, remote=app.remote_url(), cfg=app.public_cfg(), facets=library.facets() if "facets" in q else None)
+                s.update(scan=app.scan, cfg=app.public_cfg(), facets=library.facets() if "facets" in q else None)
                 return self.json(s)
             if p == "/api/lyrics": return self.json(e.lyrics())
             if p == "/api/doctor": return self.json({"report": doctor.report(app.cfg, e)})
+            if p == "/api/inbox": return self.json(app.inbox())
             if p == "/api/songs":
                 rows, more = library.query((q.get("q") or [""])[0], app.cfg["lang_filter"], app.cfg["country_filter"],
-                                           app.cfg["dedupe"], 100, int((q.get("offset") or ["0"])[0]))
-                return self.json({"songs": [{k: r[k] for k in ("id", "number", "title", "artist", "kind", "lang", "country")} for r in rows], "more": more})
-            if p == "/api/qr.svg":
-                r = subprocess.run(["qrencode", "-t", "SVG", "-m", "1", "-o", "-", app.remote_url()], capture_output=True)
-                return self.send(200 if r.returncode == 0 else 404, r.stdout, "image/svg+xml")
+                                           app.cfg["dedupe"], 100, int((q.get("offset") or ["0"])[0]),
+                                           missing=(q.get("missing") or ["0"])[0] not in ("", "0"))
+                return self.json({"songs": [{k: r[k] for k in ("id", "number", "title", "artist", "kind", "lang", "country", "lyrics")}
+                                            for r in rows], "more": more})
             m = re.fullmatch(r"/media/(\d+)/(video|cdg)", p)
             if m:
                 f = e.media(int(m[1]), m[2])
@@ -263,9 +414,15 @@ class Server(ThreadingHTTPServer):
 
 def serve(cfg):
     app = App(cfg)
-    host = "0.0.0.0" if cfg["remote"] else "127.0.0.1"
-    httpd = Server((host, cfg["port"]), handler(app))
+    try:
+        httpd = Server(("127.0.0.1", cfg["port"]), handler(app))   # one TV window on this machine: nothing else connects
+    except OSError:
+        app.engine.mpv.close()   # port taken: leave no orphan mpv behind (a second launch just opens the screen)
+        raise
     httpd.daemon_threads = True
     app.httpd = httpd
+    app.migrate_offsets()
+    app.start_scan()
     threading.Thread(target=app.watch_display, daemon=True).start()
+    threading.Thread(target=app.watch_folders, daemon=True).start()
     return app, httpd

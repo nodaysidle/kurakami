@@ -21,14 +21,32 @@ function karaokelrc --description "Fetch missing timed lyrics for the Kuraoke Ka
 end
 FISH
 cat > ~/.config/fish/functions/karaokedoctor.fish <<FISH
-function karaokedoctor --description "Check Kuraoke Kami: tools, SoundFont, folders, firewall, recent errors"
+function karaokedoctor --description "Check Kuraoke Kami: tools, SoundFont, folders, recent errors"
     $here/bin/kuraoke-kami --doctor
 end
 FISH
+# Omarchy menu: Apps -> Kuraoke Kami (added once to the user's menu extension, before its closing brace)
+menu=~/.config/omarchy/extensions/omarchy-menu.jsonc
+if [ -f "$menu" ] && ! grep -q '"apps.kuraoke-kami"' "$menu"; then
+    python3 - "$menu" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+entry = ('\n  // Kuraoke Kami\n  "apps.kuraoke-kami": {\n    "icon": "\U000f0836",\n    "label": "Kuraoke Kami",\n'
+         '    "description": "Offline home karaoke machine",\n    "aliases": ["karaoke", "kuraoke", "sing"],\n'
+         '    "action": "uwsm-app -- gtk-launch kuraoke-kami.desktop"\n  }\n')
+i = s.rstrip().rfind("}")
+head = s[:i].rstrip()
+if not head.endswith((",", "{")):
+    head += ","
+open(p, "w", encoding="utf-8").write(head + "\n" + entry + "}\n")
+PY
+    omarchy-menu refresh >/dev/null 2>&1 || true
+    echo "Added to the Omarchy menu: Apps -> Kuraoke Kami"
+fi
 echo "Installed. Launch with: kuraoke-kami   (or from the app launcher)"
 missing=""
 for c in mpv ffmpeg ffprobe fluidsynth; do command -v $c >/dev/null || missing="$missing $c"; done
 [ -n "$missing" ] && echo "Missing:$missing  ->  sudo pacman -S mpv ffmpeg fluidsynth"
 compgen -G "/usr/share/soundfonts/*.sf[23]" >/dev/null || compgen -G "$HOME/.local/share/soundfonts/*.sf[23]" >/dev/null || echo "No SoundFont (needed for MIDI/KAR)  ->  sudo pacman -S soundfont-fluid"
-command -v qrencode >/dev/null || echo "Optional QR code on the TV  ->  sudo pacman -S qrencode"
 exit 0

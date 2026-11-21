@@ -10,7 +10,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import config
+from . import config, library
 from .lyrics import (chart_lyrics, chorus_mid_lyrics, midi_groups, midi_lyrics,
                      parse_lrc, read_smf, split_midi)
 
@@ -120,8 +120,8 @@ def _sibling(path, exts):
 
 
 def _lrc(path):
-    f = _sibling(path, (".lrc",))
-    return parse_lrc(Path(f).read_text(errors="replace")) if f else []
+    f = library.lrc_for(path)   # one lookup rule for the whole app (same file the sync offset is written to)
+    return parse_lrc(f.read_text(errors="replace")) if f else []
 
 
 def find_soundfont(cfg):

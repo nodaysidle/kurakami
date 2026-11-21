@@ -1,13 +1,27 @@
 """The karaoke machine: queue, current song, live key/tempo/melody/chorus. One instance per process."""
 import itertools
+import os
 import threading
 import time
+from pathlib import Path
 
-from . import config
+from . import config, library
 from .log import log
+from .lyrics import lrc_get_offset, lrc_set_offset, parse_lrc
 from .player import Mpv, graph, prepare
 
 KEY_RANGE, TEMPO_RANGE = (-12, 12), (0.5, 1.5)
+
+
+def write_lrc(path, text):
+    """Replace an .lrc atomically: a reader never sees half a file."""
+    path = Path(path)
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 class Engine:
@@ -68,7 +82,7 @@ class Engine:
         item = self.queue.pop(0)
         self.song, self.prep, self.error = item["song"], None, ""
         self.key, self.tempo = 0, 1.0
-        self.lyric_offset = self.cfg["offsets"].get(self.song["path"], 0.0)
+        self.lyric_offset = self._lrc_offset(self.song["path"])
         self.melody, self.chorus = self.cfg["melody"], self.cfg["chorus"]
         self.phase, self.rev = "prep", self.rev + 1
         self.intro_until = time.time() + self.cfg["intro"]
@@ -107,10 +121,14 @@ class Engine:
 
     def _fail(self, gen, msg):
         """Show an error for a few seconds, then move on. Call without holding the lock."""
-        log.error("song failed: %s (%s)", msg, self.song and self.song["path"])
-        with self.lock:
-            if gen != self.gen: return
-            self.phase, self.error = "error", msg
+        with self.lock:   # the song may already be the next one by the time we log
+            path = self.song["path"] if self.song else "?"
+            stale = gen != self.gen
+            if not stale:
+                self.phase, self.error = "error", msg
+        log.error("song failed: %s (%s)", msg, path)
+        if stale:
+            return
         time.sleep(5)
         with self.lock:
             if gen == self.gen: self._advance()
@@ -155,19 +173,61 @@ class Engine:
             if self.phase in ("playing", "paused"):
                 self.mpv.set("speed", self.tempo)
 
+    def _lrc_offset(self, path):
+        """The offset lives in the song's .lrc; config["offsets"] is only the fallback (MIDI/KAR/Chorus/CDG)."""
+        f = library.lrc_for(path)
+        if f:
+            try:
+                return lrc_get_offset(f.read_text(errors="replace"))
+            except OSError:
+                pass
+        return float(self.cfg["offsets"].get(path, 0.0))
+
     def set_sync(self, value=None, delta=0.0):
-        """Shift this song's lyrics later (+) or earlier (-); remembered per file."""
+        """Shift this song's lyrics later (+) or earlier (-); written into the .lrc, so it outlives renames."""
         with self.lock:
             if not self.song:
                 return
+            path = self.song["path"]
             v = delta + self.lyric_offset if value is None else value
             self.lyric_offset = round(max(-60.0, min(60.0, float(v))), 2)
+            f = library.lrc_for(path)
+            if f:
+                try:
+                    write_lrc(f, lrc_set_offset(f.read_text(errors="replace"), self.lyric_offset))
+                except OSError:
+                    log.exception("could not write %s, keeping the offset in the config", f)
+                else:
+                    try:
+                        library.refresh(path)
+                    except Exception:
+                        log.exception("could not refresh the song book row for %s", path)
+                    return
             offsets = self.cfg["offsets"]
             if self.lyric_offset:
-                offsets[self.song["path"]] = self.lyric_offset
+                offsets[path] = self.lyric_offset
             else:
-                offsets.pop(self.song["path"], None)
+                offsets.pop(path, None)
             config.save(self.cfg)
+
+    def sync_line(self, line):
+        """One press: put lyric line `line` where the singer is now -> the new offset (None if not singing)."""
+        with self.lock:
+            if self.phase not in ("playing", "paused") or not self.prep:
+                return None
+            lines = self.prep["lyrics"]
+            line = int(line)
+            if not 0 <= line < len(lines):
+                raise ValueError("no such lyric line")
+            start, gen = lines[line][0][0], self.gen
+        pos = self.mpv.get("time-pos")   # mpv talk without the lock: other requests keep flowing
+        if pos is None:
+            return None
+        with self.lock:
+            if gen != self.gen:
+                return None
+            self.set_sync(pos - start)
+            return self.lyric_offset
 
     def toggle(self, layer):
         with self.lock:
@@ -204,6 +264,22 @@ class Engine:
     def lyrics(self):
         with self.lock:
             return {"rev": self.rev, "lines": self.prep["lyrics"] if self.prep else []}
+
+    def reload_lyrics(self, song_id):
+        """The .lrc of the current song changed (lyrics_save): re-read it so the TV reloads."""
+        with self.lock:
+            song = self.song
+            if not (song and self.prep and song["id"] == song_id and song["kind"] in ("audio", "video")):
+                return False
+            f = library.lrc_for(song["path"])
+            try:
+                self.prep["lyrics"] = parse_lrc(f.read_text(errors="replace")) if f else []
+            except OSError:
+                return False
+            self.lyric_offset = self._lrc_offset(song["path"])
+            song["lyrics"] = library.lyrics_status(song["path"], song["kind"])
+            self.rev += 1
+            return True
 
     def media(self, song_id, what):
         with self.lock:

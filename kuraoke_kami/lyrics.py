@@ -260,10 +260,74 @@ def parse_ini(text):
 
 # ---------------------------------------------------------------- LRC (line + enhanced word timing)
 
+TAG_RE = re.compile(r"^\s*\[([A-Za-z]+):([^\]]*)\]\s*$")   # [ar:] [ti:] [offset:] [kk:] … metadata, not lyrics
+SUSPECT_RE = re.compile(r"^\s*\[kk:\s*suspect\s*\]\s*$", re.I)
+WORD_STAMP = re.compile(r"<\d+:\d+(?:\.\d+)?>")
+LINE_STAMP = re.compile(r"\[\d+:\d+(?:\.\d+)?\]")
+
+
+def lrc_get_offset(text):
+    """Sync offset in engine seconds (+ = lyrics later). The tag stores the opposite sign (LRC convention)."""
+    for ln in text.splitlines():
+        m = TAG_RE.match(ln)
+        if m and m[1].lower() == "offset":
+            try:
+                return -float(m[2].strip()) / 1000.0
+            except ValueError:
+                return 0.0
+    return 0.0
+
+
+def lrc_is_suspect(text):
+    return any(SUSPECT_RE.match(ln) for ln in text.splitlines())
+
+
+def lrc_kind(text):
+    """`word` (enhanced, <mm:ss.xx> stamps) | `line` (plain [mm:ss.xx] lines) | `none`."""
+    line = False
+    for ln in text.splitlines():
+        if WORD_STAMP.search(ln):
+            return "word"
+        if LINE_STAMP.search(ln) and re.sub(r"\[\d+:\d+(?:\.\d+)?\]", "", ln).strip():
+            line = True
+    return "line" if line else "none"
+
+
+def _eol(text):
+    return "\r\n" if "\r\n" in text else "\n"
+
+
+def lrc_set_offset(text, seconds):
+    """Set/remove the `[offset:N]` tag (N = -ms, so +seconds shows lyrics later) and drop `[kk:suspect]`.
+
+    Only the tag line changes: every other byte of the file is kept as it was.
+    """
+    ms = int(round(-seconds * 1000))
+    tag = f"[offset:{ms}]" if ms else ""
+    eol = _eol(text)
+    out, placed = [], False
+    for ln in text.splitlines(keepends=True):
+        m = TAG_RE.match(ln)
+        if (m and m[1].lower() == "offset") or SUSPECT_RE.match(ln):
+            if m and tag and not placed:  # keep the first tag's spot, drop duplicates
+                out.append(tag + (ln[len(ln.rstrip("\r\n")):] or ""))
+                placed = True
+            continue
+        out.append(ln)
+    if tag and not placed:  # after the leading [ar:] [ti:] header block, else at the very top
+        at = 0
+        while at < len(out) and TAG_RE.match(out[at]):
+            at += 1
+        out.insert(at, tag + eol)
+    return "".join(out)
+
+
 def parse_lrc(text):
-    """Plain `[mm:ss.xx] line` and enhanced `[..] <mm:ss.xx>word <..>word` LRC."""
+    """Plain `[mm:ss.xx] line` and enhanced `[..] <mm:ss.xx>word <..>word` LRC. `[offset:]` is not applied."""
     toks, plain = [], []
     for ln in text.splitlines():
+        if TAG_RE.match(ln):  # header/metadata line, never lyrics
+            continue
         stamps = re.findall(r"\[(\d+):(\d+(?:\.\d+)?)\]", ln)
         body = re.sub(r"\[\d+:\d+(?:\.\d+)?\]", "", ln)
         words = re.findall(r"<(\d+):(\d+(?:\.\d+)?)>([^<]*)", body)
