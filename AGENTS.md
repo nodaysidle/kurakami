@@ -12,7 +12,7 @@ isolated instances are for checking along the way, not a replacement.
    The server binds `127.0.0.1` only and `/` answers loopback clients only: nothing outside this machine can connect.
 4. Reproduce on an isolated instance, never on the user's: set `XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME` to a temp dir, `KURAOKE_MPV_OPTS=--ao=null`, write a config with another `port`, run `bin/kuraoke-kami --no-ui`.
    `python3 tests/fixtures.py DIR` builds a demo song of every format.
-5. Tests: `python3 -m unittest discover -s tests` (`test_core.py`, `test_pipeline.py`: 55 tests, no mpv/ffmpeg) and `node tests/test_lyricpage.js`.
+5. Tests: `python3 -m unittest discover -s tests` (`test_core.py`, `test_pipeline.py`: 56 tests, no mpv/ffmpeg) and `node tests/test_lyricpage.js`.
    The repo-root `package.json` (`"type": "commonjs"`) is what lets the node test load `web/lyricpage.js` as CommonJS: a
    `package.json` higher up (`~/dev/package.json`, `"type": "module"`) otherwise makes Node treat `tests/*.js` as ESM, and
    `require` fails.

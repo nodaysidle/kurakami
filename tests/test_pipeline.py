@@ -230,6 +230,13 @@ class LrclibLrc(unittest.TestCase):
         self.assertTrue(lrclib.same_artist("Fedezz", "Fedez"))
         self.assertFalse(lrclib.same_artist("Coma Cose", "Miach"))
 
+    def test_null_album_text_is_dropped(self):
+        rec = dict(SYNCED, albumName="null", syncedLyrics="[00:12.00] a\n[04:30.00] b\n")
+        with patched(lrclib, _get=lambda p, q: (rec, None) if p == "get" else ([rec], None)):
+            c = lrclib.candidates("Marracash", "Stupido", 288)[0][0]
+        self.assertEqual(c["album"], "")
+        self.assertNotIn("[al:", lrclib.to_lrc(c, 288))
+
 
 class Importer(unittest.TestCase):
     def setUp(self):

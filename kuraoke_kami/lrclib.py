@@ -11,7 +11,13 @@ import urllib.request
 from .library import TRAIL
 
 BASE = "https://lrclib.net/api/"
-UA = "kuraoke-kami/0.1"
+UA = "kuraoke-kami/0.2.0 (https://github.com/nodaysidle/kurakami)"
+
+
+def _text(v):
+    """lrclib sometimes stores the word "null" as a value: treat it as missing."""
+    v = str(v or "").strip()
+    return "" if v.lower() in ("null", "none", "undefined") else v
 TRIES = 3                         # attempts per query
 BACKOFF = 2                       # seconds; multiplied by the attempt number
 SUSPECT = "kk:suspect"            # a line the app reads: lyrics may be out of sync
@@ -85,7 +91,7 @@ def _cand(h, dur):
     if dur > 0 and delta > 20:  # another cut of the song: its timing would be wrong
         return None
     return {"id": h.get("id"), "artist": h.get("artistName") or "", "title": h.get("trackName") or h.get("name") or "",
-            "album": h.get("albumName") or "", "duration": d, "delta": delta, "synced": bool(h.get("syncedLyrics")),
+            "album": _text(h.get("albumName")), "duration": d, "delta": delta, "synced": bool(h.get("syncedLyrics")),
             "lyrics": text, "preview": _preview(text)}
 
 

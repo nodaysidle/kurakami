@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/Python-stdlib%20only-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python, standard library only">
     <img src="https://img.shields.io/badge/audio-mpv%20%2B%20ffmpeg%20%2B%20fluidsynth-8e8e96?style=flat-square" alt="mpv, ffmpeg, fluidsynth">
     <img src="https://img.shields.io/badge/UI-English%20%2B%20Tagalog-ffb21e?style=flat-square" alt="English and Tagalog">
-    <img src="https://img.shields.io/badge/tests-55%20py%20%2B%20node-4c8c6b?style=flat-square" alt="55 Python tests and the node lyric page test">
+    <img src="https://img.shields.io/badge/tests-56%20py%20%2B%20node-4c8c6b?style=flat-square" alt="56 Python tests and the node lyric page test">
     <img src="https://img.shields.io/badge/network-localhost%20only-4c8c6b?style=flat-square" alt="Listens on localhost only">
     <img src="https://img.shields.io/badge/telemetry-none-4c8c6b?style=flat-square" alt="No telemetry">
     <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License MIT">
@@ -222,7 +222,7 @@ tests/          test_core.py  test_pipeline.py  test_lyricpage.js  fixtures.py
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests -v   # 55 tests: parsers, numbering, renames, lyrics status, offsets, lrclib, importer, mixer graph
+python3 -m unittest discover -s tests -v   # 56 tests: parsers, numbering, renames, lyrics status, offsets, lrclib, importer, mixer graph
 node tests/test_lyricpage.js               # which lyric lines are on screen
 ```
 
