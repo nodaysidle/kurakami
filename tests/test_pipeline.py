@@ -170,9 +170,10 @@ class LrclibHttp(unittest.TestCase):
 class LrclibLrc(unittest.TestCase):
     def test_plausible(self):
         self.assertTrue(lrclib.plausible("[00:10.00] a\n[03:00.00] b\n", 200))    # ends 20 s before the file
-        self.assertTrue(lrclib.plausible("[00:10.00] a\n[02:35.00] b\n", 200))    # 45 s before: still fine
+        self.assertTrue(lrclib.plausible("[00:37.72] a\n[03:04.00] b\n", 243))   # Midnight City: 59 s sax outro is fine
+        self.assertTrue(lrclib.plausible("[00:10.00] a\n[01:41.00] b\n", 200))   # just past halfway
         self.assertFalse(lrclib.plausible("[00:10.00] a\n[03:30.00] b\n", 200))   # starts after the file ends
-        self.assertFalse(lrclib.plausible("[00:10.00] a\n[02:00.00] b\n", 288))   # 88 s of silence: another cut
+        self.assertFalse(lrclib.plausible("[00:10.00] a\n[02:00.00] b\n", 288))   # stops before halfway: another cut
         self.assertTrue(lrclib.plausible("no stamps at all\n", 200))
         self.assertTrue(lrclib.plausible("[04:40.00] last\n", 0))
 
@@ -195,7 +196,9 @@ class LrclibLrc(unittest.TestCase):
         text = lrclib.to_lrc(good, 288)
         self.assertIn("[00:12.00] a", text)
         self.assertNotIn("[kk:", text)
-        bad = candidate(synced=True, lyrics="[00:12.00] a\n[03:48.00] b\n")      # dur 288: 60 s of silence
+        outro = candidate(synced=True, lyrics="[00:12.00] a\n[03:48.00] b\n")    # dur 288: 60 s outro is normal
+        self.assertNotIn("[kk:", lrclib.to_lrc(outro, 288))
+        bad = candidate(synced=True, lyrics="[00:12.00] a\n[02:00.00] b\n")      # dur 288: stops before halfway
         self.assertIn("[kk:suspect]", lrclib.to_lrc(bad, 288))
         self.assertNotIn("[kk:untimed]", lrclib.to_lrc(bad, 288))
 

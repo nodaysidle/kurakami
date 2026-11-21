@@ -74,8 +74,8 @@ Now in the song book:
 - `10003` is the number you type in the karaoke app.
 - `lyrics saved (...)`: timed lyrics were found and saved.
 - `lyrics saved (... (untimed))`: only plain lyrics were found; the app spread them over the track by guesswork.
-- `lyrics saved (... (suspect))`: lyrics were saved, but the last line ends far from the end of the file, so the timing
-  is probably from another cut of the song. Press **T** while it plays (see "Fixing lyrics inside the app").
+- `lyrics saved (... (suspect))`: lyrics were saved, but they run past the end of the file or stop before its halfway
+  point, so the timing is probably from another cut of the song. (A long instrumental outro alone is not flagged.) Press **T** while it plays (see "Fixing lyrics inside the app").
 - `lyrics no synced match`: that song has no timed lyrics on the lyrics site. It still plays, without words.
 - `lyrics service unavailable`: the lyrics site was busy. This is common. Do step 6 a few minutes later.
 

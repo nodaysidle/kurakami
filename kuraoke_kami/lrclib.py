@@ -120,7 +120,9 @@ def candidates(artist, title, dur):
 
 
 def plausible(lrc_text, dur):
-    """False when the last stamped line starts after the track ends, or more than 45 s before it does."""
+    """False when the last stamped line starts after the track ends, or before its halfway point (lyrics of another,
+    much longer cut). A long instrumental outro is normal (Midnight City: last line at 3:04 of 4:03), so a quiet end
+    alone is not a sign of bad timing."""
     if dur <= 0:
         return True
     starts = []
@@ -135,7 +137,7 @@ def plausible(lrc_text, dur):
     if not starts:
         return True
     last = max(starts)
-    return last <= dur and dur - last <= 45
+    return last <= dur and last >= dur / 2
 
 
 def _stamp(t):

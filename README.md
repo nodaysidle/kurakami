@@ -113,7 +113,7 @@ Every song in the book carries a lyrics status, shown in the song book:
 |---|---|
 | `word` | `.lrc` with per-word timings: the fill follows every word |
 | `line` | `.lrc` timed per line; the words are spread across the line (approximate) |
-| `suspect` | saved, but the timing looks like another cut of the song: press **T** and fix it |
+| `suspect` | saved, but the lyrics run past the end of the file or stop before its halfway point, so the timing looks like another cut of the song: press **T** and fix it. A long outro alone is fine |
 | `none` | no lyrics yet |
 | `embedded` | MIDI / KAR / Chorus folder: the lyrics are inside the file |
 | `cdg` | CDG: the lyrics are drawn by the graphics |
