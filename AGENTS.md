@@ -2,6 +2,10 @@
 
 Start here when something is wrong. Do not ask the user to reopen or reproduce first.
 
+**Rule from the owner:** a change is not done, and is never pushed, until the installed app was launched from the Omarchy
+menu (Apps → Kuraoke Kami) on a real workspace and the changed flows were used in that window. Headless screenshots and
+isolated instances are for checking along the way, not a replacement.
+
 1. `bin/kuraoke-kami --doctor` : environment + song book + lyrics counts (none / suspect) + recent errors (works with the app closed).
 2. `bin/kuraoke-kami --logs` or read `~/.local/state/kuraoke-kami/kuraoke.log` (tracebacks; browser errors are `ERROR browser: ...`). mpv: `mpv.log` beside it.
 3. With the app running: `GET /api/doctor`, `GET /api/state` (header `X-Token` from `~/.config/kuraoke-kami/config.json`).
