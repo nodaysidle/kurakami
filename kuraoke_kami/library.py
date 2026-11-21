@@ -58,6 +58,9 @@ def clean_stem(stem):
     s = JUNK.sub("", s)
     s = TRAIL.sub("", s)            # "Title Official Video" without brackets
     s = re.sub(r"\s*-\s*Topic$", "", s)
+    s = re.sub(r"\s+[–—|]\s+", " - ", s)          # "Artist – Title", "Artist | Title"
+    if " - " not in s:                             # "Artist 'Title'", "Artist “Title”"
+        s = re.sub(r"^(.+?)\s+['\"‘“«](.+)['\"’”»]$", r"\1 - \2", s.strip())
     s = re.sub(r'[/\\:*?"<>|]', "", s)
     s = " ".join(s.split())
     return " - ".join(p.title() if p.isupper() and len(p) > 3 else p for p in s.split(" - "))

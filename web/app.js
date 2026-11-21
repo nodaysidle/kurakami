@@ -1138,7 +1138,7 @@ function wireSettings() {
     const btn = $("#inbox-check");
     btn.disabled = true;
     await refreshInbox();
-    btn.disabled = false;
+    btn.disabled = false; btn.focus();   // disabling dropped the focus to the top of the sheet
   });
 
   $("#inbox-import").addEventListener("click", async () => {
@@ -1155,7 +1155,7 @@ function wireSettings() {
     $("#doctor-out").textContent = "…";
     try { $("#doctor-out").textContent = (await get("/api/doctor")).report; }
     catch (e) { $("#doctor-out").textContent = t("err_generic"); }
-    btn.disabled = false;
+    btn.disabled = false; btn.focus();
   });
 
   $("#rebuild-word").addEventListener("input", (e) => {

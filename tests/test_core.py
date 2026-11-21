@@ -185,6 +185,11 @@ class Names(unittest.TestCase):
         self.assertEqual(c("Artist - Song Official Music Video"), "Artist - Song")
         self.assertEqual(c("Artist - Song Video Ufficiale"), "Artist - Song")
         self.assertEqual(c("Artist - Official Video Game"), "Artist - Official Video Game")   # only trailing junk goes
+        self.assertEqual(c("M83 'Midnight City' Official video [dX3k_QDnzHE]"), "M83 - Midnight City")
+        self.assertEqual(c('Artist "Song Name"'), "Artist - Song Name")
+        self.assertEqual(c("Artist – Song"), "Artist - Song")
+        self.assertEqual(c("Artist | Song"), "Artist - Song")
+        self.assertEqual(c("Don't Stop"), "Don't Stop")                                      # no artist: stays unknown
 
     def test_split_name(self):
         s = library.split_name
