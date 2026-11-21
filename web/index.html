@@ -249,6 +249,21 @@
       <button type="submit" class="primary" id="ld-search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span data-i18n="search"></span></button>
     </div>
     <p id="ld-status" class="status" role="status"></p>
+    <section id="ld-sr" class="sr-box">
+      <h3 data-i18n="sr_title"></h3>
+      <p id="ld-sr-note" class="muted"></p>
+      <div class="row sr-row">
+        <label class="field"><span data-i18n="sr_lang"></span>
+          <select id="ld-sr-lang">
+            <option value="auto" data-i18n="sr_auto"></option>
+            <option value="en">English</option><option value="it">Italiano</option><option value="tl">Tagalog</option>
+            <option value="es">Español</option><option value="fr">Français</option><option value="de">Deutsch</option>
+            <option value="pt">Português</option><option value="ja">日本語</option><option value="ko">한국어</option>
+          </select></label>
+        <button type="button" class="secondary" id="ld-sr-go"><svg class="ic" aria-hidden="true"><use href="#i-sync"/></svg><span data-i18n="sr_go"></span></button>
+      </div>
+      <p id="ld-sr-status" class="status" role="status"></p>
+    </section>
     <ul id="ld-results" class="candidates"></ul>
   </form>
 </div>

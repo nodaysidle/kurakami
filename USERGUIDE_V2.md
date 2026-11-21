@@ -139,7 +139,27 @@ Tips:
   "may be out of sync", so press **T** once while singing.
 - The old lyrics file is kept once as a backup (`.lrc.bak`) next to the song.
 
-Some songs simply aren't on lrclib. They still play, just without words.
+Some songs simply aren't on lrclib. They still play, just without words, unless you use speech recognition (below).
+
+### Timing lyrics from the song itself: speech recognition
+
+Untimed lyrics, lyrics that drift, or no lyrics at all? The app can listen to the song and time it for you. Everything
+happens on this computer.
+
+**Once:** run `tools/setup_whisper.sh` in the project folder (downloads about 1 GB). Until then the button says "Not installed".
+
+1. Press **L** on the song.
+2. Under **Time with speech recognition**, choose the language it is sung in (**Detect** usually works).
+3. Press **Listen and time**. It takes about a minute; you can close the window and keep singing other songs meanwhile.
+   A note appears when it is done.
+
+- If the song already has lyrics (or they are stored inside the song file), the app keeps those words and gives every
+  word the moment it is heard. The note says how many words it heard; lines it could not hear are placed between their
+  neighbours.
+- If the song has no lyrics, the app writes down what is sung. Some words may be wrong: open the song's `.lrc` in a text
+  editor and correct them (leave the `<00:12.34>` time marks alone).
+- The previous lyrics file is kept once as `.lrc.bak` next to the song.
+- Only for audio and video songs; MIDI, Clone Hero and CDG songs carry their own lyrics.
 
 ---
 
@@ -249,6 +269,7 @@ songs in `20000`s.
 | MIDI / KAR songs are silent | install a SoundFont: `sudo pacman -S soundfont-fluid` |
 | no sound at all | check the volume (**↑**) and your system audio output |
 | an "Offline" pill top-right | the app's background part stopped; close the window and open it again from the menu |
+| "Speech recognition failed" | try another language than Detect; songs with very loud music may not be heard well |
 | anything else | **S → Diagnostics → Run checks**, or `karaokedoctor` in a terminal |
 
 The health check looks at the needed tools (mpv, ffmpeg, fluidsynth), the SoundFont, your folders, how many songs lack
@@ -265,6 +286,8 @@ lyrics, the audio server, and the last errors. Everything is logged in `~/.local
 | settings | `~/.config/kuraoke-kami/config.json` |
 | the song book (numbers) | `~/.local/share/kuraoke-kami/library.db` |
 | rendered MIDI audio | `~/.cache/kuraoke-kami/` (safe to delete) |
+| speech recognition (optional) | `~/.local/share/kuraoke-kami/whisper` and the model in `~/.cache/huggingface/` |
 | the log | `~/.local/state/kuraoke-kami/kuraoke.log` |
 
 Privacy: no accounts, no tracking. The lyrics search sends only the artist, title and song length to lrclib.net.
+Speech recognition runs on this computer; only its one-time setup downloads anything.

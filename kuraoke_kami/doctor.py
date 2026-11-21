@@ -42,6 +42,9 @@ def checks(cfg, engine=None):
     # audio
     pa = _first_line(["pactl", "info"]) if shutil.which("pactl") else ""
     add(OK if pa else WARN, "audio server", _first_line(["sh", "-c", "pactl info | grep 'Server Name'"]) or "pactl not answering")
+    from . import whisper
+    add(OK, "speech recognition", f"ready ({whisper.python(cfg)})" if whisper.available(cfg)
+        else "optional, not installed: tools/setup_whisper.sh (times lyrics from the audio)")
     # library
     try:
         f = library.facets()

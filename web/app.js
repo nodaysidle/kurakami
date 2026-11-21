@@ -248,6 +248,8 @@ function onState(s) {
     if (!$("#drawer").hidden) loadSongs(true);
   }
   hudToast(s, prev);
+  onTiming(prev && prev.timing, s.timing);
+  if (!$("#lyrics-dialog").hidden) renderSpeech();
   render();
   if (first && s.phase === "idle") focusNum();
 }
@@ -614,6 +616,10 @@ function openLyricsFor(song) {
   $("#ld-title-input").value = song.title || "";
   $("#ld-results").innerHTML = "";
   setLyricsStatus("", "");
+  // each song starts at its folder's language label (when it is one of the choices), else Detect
+  const sel = $("#ld-sr-lang"), code = String(song.lang || "").toLowerCase();
+  sel.value = [...sel.options].some((o) => o.value === code) ? code : "auto";
+  renderSpeech();
   openOverlay("#lyrics-dialog", "#ld-artist");
   $("#ld-artist").select();
 }
@@ -669,6 +675,53 @@ function renderCandidates() {
     li.append(b);
     ul.append(li);
   });
+}
+
+// speech recognition: time the known words from the audio, or write down what is sung
+function renderSpeech() {
+  if (!candFor || !S) return;
+  const kindOk = !candFor.kind || candFor.kind === "audio" || candFor.kind === "video";
+  const ready = !!S.whisper, tm = S.timing || {};
+  const mine = tm.id === candFor.id;
+  const none = candFor.lyrics === "none";
+  $("#ld-sr-note").textContent = !kindOk ? t("sr_note_kind") : !ready ? t("sr_note_off") : none ? t("sr_note_none") : t("sr_note_known");
+  $("#ld-sr-go").disabled = !kindOk || !ready || !!tm.running;
+  $("#ld-sr-lang").disabled = !kindOk || !ready;
+  const st = $("#ld-sr-status");
+  st.className = "status";
+  if (tm.running && mine) st.textContent = t("sr_running");
+  else if (tm.running) st.textContent = t("sr_busy");
+  else if (mine && tm.error) { st.textContent = fmt("sr_failed", { s: tm.error }); st.classList.add("warn"); }
+  else if (mine && tm.result) st.textContent = tm.result === "timed" ? fmt("sr_done_timed", { n: Math.round((tm.share || 0) * 100) }) : t("sr_done_transcribed");
+  else st.textContent = "";
+}
+
+async function startSpeech() {
+  if (!candFor) return;
+  const r = await api("lyrics_time", { id: candFor.id, lang: $("#ld-sr-lang").value });
+  if (!r || !r.ok) {
+    const st = $("#ld-sr-status");
+    st.textContent = r && r.error === "busy" ? t("sr_busy") : r && r.error === "unavailable" ? t("sr_note_off") : t("err_generic");
+    st.className = "status warn";
+    return;
+  }
+  S.timing = { running: true, id: candFor.id };
+  renderSpeech();
+}
+
+// a finished speech run: update the song's badge and say so, even if the dialog was closed meanwhile
+function onTiming(prev, now) {
+  if (!prev || !prev.running || (now && now.running)) return;
+  if (!now || now.id == null) return;
+  if (now.error) flash(fmt("sr_failed", { s: now.error }));
+  else if (now.result) {
+    songs.forEach((s) => { if (s.id === now.id) s.lyrics = now.status; });
+    if (candFor && candFor.id === now.id) candFor.lyrics = now.status;
+    if (S.song && S.song.id === now.id) S.song.lyrics = now.status;
+    renderSongs();
+    facetTick = 0;
+    flash(now.result === "timed" ? fmt("sr_done_timed", { n: Math.round((now.share || 0) * 100) }) : t("sr_done_transcribed"));
+  }
 }
 
 async function saveCandidate(i) {
@@ -1133,6 +1186,8 @@ function wireSettings() {
     renderSettings.fkey = null;
     renderSettings();
   });
+
+  $("#ld-sr-go").addEventListener("click", startSpeech);
 
   $("#inbox-check").addEventListener("click", async () => {
     const btn = $("#inbox-check");

@@ -18,6 +18,8 @@ DEFAULTS = {
     "lang": "en",            # UI language: en | tl
     "folders": [],           # {path, start, lang, country}
     "inbox": "~/Downloads",  # folder the Inbox page imports new songs from
+    "whisper_python": "",    # speech recognition venv python; blank = ~/.local/share/kuraoke-kami/whisper (setup_whisper.sh)
+    "whisper_model": "small",
     "lang_filter": [],       # empty = show all
     "country_filter": [],
     "dedupe": False,

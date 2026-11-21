@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/badge/Python-stdlib%20only-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python, standard library only">
     <img src="https://img.shields.io/badge/audio-mpv%20%2B%20ffmpeg%20%2B%20fluidsynth-8e8e96?style=flat-square" alt="mpv, ffmpeg, fluidsynth">
     <img src="https://img.shields.io/badge/UI-English%20%2B%20Tagalog-ffb21e?style=flat-square" alt="English and Tagalog">
-    <img src="https://img.shields.io/badge/tests-56%20py%20%2B%20node-4c8c6b?style=flat-square" alt="56 Python tests and the node lyric page test">
+    <img src="https://img.shields.io/badge/tests-63%20py%20%2B%20node-4c8c6b?style=flat-square" alt="63 Python tests and the node lyric page test">
     <img src="https://img.shields.io/badge/network-localhost%20only-4c8c6b?style=flat-square" alt="Listens on localhost only">
     <img src="https://img.shields.io/badge/telemetry-none-4c8c6b?style=flat-square" alt="No telemetry">
     <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License MIT">
@@ -56,7 +56,7 @@ Download songs → Settings → Import (or `karaokeimp`, or just drop files in a
 | **Intro** | Song number, title, artist and a countdown bar. Warns when the song has no lyrics (“press L”) or doubtful lyrics (“press T”). **Space** skips it. |
 | **Lyrics** | Two lines in the middle, sung words turn amber, count-in dots before the first line and after long breaks. Bottom strip: progress, elapsed / remaining, restart / pause, Up next. Key / tempo / melody / chorus changes show for two seconds top-right, only when not at default. |
 | **Song book** (`/`) | A wide panel: search by number, title or artist; language chips; **Missing lyrics (N)** filter; a lyrics mark per row. `↑` `↓` move, `Enter` adds, `Shift+Enter` sings next, `L` finds lyrics; clicking a row shows the same actions. |
-| **Find lyrics** (`L`) | Editable artist / title, ranked lrclib matches with album, length, Δ to your file, timed or plain, first lines. Pick one and it is saved and shown at once. |
+| **Find lyrics** (`L`) | Editable artist / title, ranked lrclib matches with album, length, Δ to your file, timed or plain, first lines. Pick one and it is saved and shown at once. Below: **Time with speech recognition** (optional). |
 | **Tap-to-sync** (`T`) | One lyric line, big. `←` `→` choose it, `T` / `Enter` the moment it is sung, `Esc` cancels. |
 | **Queue** (`Q`) | Move to top, remove, clear; **U** undoes a clear. |
 | **Settings** (`S`) | General (language, intro length, hide duplicates), Library (folders, start numbers, scan), Import (inbox), Audio (SoundFont), Diagnostics, Keyboard shortcuts, Advanced (rebuild database, typed confirmation; Quit). |
@@ -132,6 +132,21 @@ and suspect. One tap with **T** lines them up.
 so it survives renames, moves and copying the library elsewhere. MIDI / KAR / Clone Hero / CDG songs keep theirs in the
 config. Offsets saved by older versions are moved into the matching `.lrc` files on first start.
 
+**Speech recognition (optional).** For songs whose lyrics are untimed, badly timed, or missing entirely, **L → Time
+with speech recognition** listens to the song on this machine ([faster-whisper](https://github.com/SYSTRAN/faster-whisper),
+multilingual “small” model) and writes word-timed lyrics:
+
+- **words known** (the song’s `.lrc`, or lyrics stored in the file’s tags): every word takes the time it is heard; words in
+  between are interpolated; lines that cannot be heard share the gap before the next heard line. The result says how many
+  words were heard.
+- **no words known:** what is sung is written down, word-timed. Machine-made: some words may be wrong; fix them in the
+  `.lrc` with a text editor, the time marks can stay.
+
+Pick the language (“Detect” works for most songs) and press **Listen and time**; it takes about a minute and runs in the
+background, so the dialog can be closed. The previous `.lrc` is kept once as `.lrc.bak`. Install it once with
+`tools/setup_whisper.sh` (about 1 GB: its own venv under `~/.local/share/kuraoke-kami/whisper` plus the model); the app
+itself stays standard-library only and only starts the recogniser as a separate process.
+
 ## Song formats
 
 | Type | Files | Lyrics |
@@ -167,6 +182,8 @@ git clone https://github.com/nodaysidle/kurakami.git
 cd kurakami
 ./install.sh
 ```
+
+Optional, for timing lyrics from the audio: `tools/setup_whisper.sh`.
 
 `install.sh` is safe to re-run. It links the `kuraoke-kami` command, installs the desktop entry and icon, adds the fish
 commands `karaokeimp`, `karaokelrc` and `karaokedoctor`, and adds **Apps → Kuraoke Kami** to the Omarchy menu (once, in
@@ -213,16 +230,16 @@ error in the window. A song that cannot play shows its reason for five seconds a
 | Window | Chromium app window; fullscreen / close through `hyprctl` |
 
 ```text
-kuraoke_kami/   server.py  engine.py  library.py  lyrics.py  lrclib.py  importer.py  player.py  config.py  doctor.py  log.py
+kuraoke_kami/   server.py  engine.py  library.py  lyrics.py  lrclib.py  importer.py  align.py  whisper.py  player.py  config.py  doctor.py  log.py
 web/            index.html  app.js  style.css  i18n.js  lyricpage.js  cdg.js
-tools/          import_songs.py (karaokeimp)  fetch_lrc.py (karaokelrc)
-tests/          test_core.py  test_pipeline.py  test_lyricpage.js  fixtures.py
+tools/          import_songs.py (karaokeimp)  fetch_lrc.py (karaokelrc)  setup_whisper.sh  whisper_words.py
+tests/          test_core.py  test_pipeline.py  test_align.py  test_lyricpage.js  fixtures.py
 ```
 
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests -v   # 56 tests: parsers, numbering, renames, lyrics status, offsets, lrclib, importer, mixer graph
+python3 -m unittest discover -s tests -v   # 63 tests: parsers, numbering, renames, lyrics status, offsets, lrclib, importer, mixer graph
 node tests/test_lyricpage.js               # which lyric lines are on screen
 ```
 
@@ -234,6 +251,7 @@ Omarchy with Hyprland 0.56.
 
 No accounts, no telemetry, no analytics, nothing listens on your network. The only network calls are the optional lyrics
 lookups (`karaokeimp`, `karaokelrc`, the in-app **Find lyrics**), which send artist, title and track length to lrclib.net.
+Speech recognition runs entirely on this machine; its setup downloads the model once.
 Use it for songs you own.
 
 ## Known limits

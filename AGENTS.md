@@ -12,7 +12,7 @@ isolated instances are for checking along the way, not a replacement.
    The server binds `127.0.0.1` only and `/` answers loopback clients only: nothing outside this machine can connect.
 4. Reproduce on an isolated instance, never on the user's: set `XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME` to a temp dir, `KURAOKE_MPV_OPTS=--ao=null`, write a config with another `port`, run `bin/kuraoke-kami --no-ui`.
    `python3 tests/fixtures.py DIR` builds a demo song of every format.
-5. Tests: `python3 -m unittest discover -s tests` (`test_core.py`, `test_pipeline.py`: 56 tests, no mpv/ffmpeg) and `node tests/test_lyricpage.js`.
+5. Tests: `python3 -m unittest discover -s tests` (`test_core.py`, `test_pipeline.py`, `test_align.py`: 63 tests, no mpv/ffmpeg/whisper) and `node tests/test_lyricpage.js`.
    The repo-root `package.json` (`"type": "commonjs"`) is what lets the node test load `web/lyricpage.js` as CommonJS: a
    `package.json` higher up (`~/dev/package.json`, `"type": "module"`) otherwise makes Node treat `tests/*.js` as ESM, and
    `require` fails.
@@ -31,3 +31,8 @@ Gotchas
 - Never `pkill -f kuraoke` / `pkill mpv`, and never kill by process name (`awk ... /kuraoke_kami/`): that also matches the user's **running app**. Check `ss -ltn | grep :8890` before every test; start test servers with `& echo $!` and kill exactly that PID (test ports 188xx, never 8890).
 - `songs/` holds the user's own files and is git-ignored. Do not commit or upload them.
 - Pushing to `main` is blocked by the user's pre-push hook until they approve it.
+- Speech recognition is optional and lives outside the app: `tools/setup_whisper.sh` makes a venv in
+  `~/.local/share/kuraoke-kami/whisper` (or `whisper_python` in the config); `kuraoke_kami/whisper.py` runs
+  `tools/whisper_words.py` there as a subprocess and `align.py` (stdlib) turns the transcript into word-timed LRC.
+  Never import faster-whisper in the app. `POST /api/lyrics_time {id, lang}` runs in the background; progress is
+  `timing` in `/api/state`, availability is `whisper`.

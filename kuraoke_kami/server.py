@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import config, doctor, library, lrclib
+from . import config, doctor, library, lrclib, whisper
 from .engine import Engine, write_lrc
 from .log import log
 from .lyrics import lrc_set_offset
@@ -38,6 +38,8 @@ class App:
         self.display_last = self.display_closing = 0.0   # the TV window polls with d=1; 0.0 = never seen
         self.host_ok = {"localhost", "127.0.0.1", "::1", socket.gethostname().lower()}
         self.hits = {}                                   # song id -> {dur, hits}: the last lyrics_search
+        self.timing = {"running": False, "id": None, "error": "", "result": "", "share": 0.0, "status": ""}
+        self._whisper = (False, 0.0)                     # (speech recognition installed?, when checked)
 
     # -------------------------------------------------------------- scanning
     def start_scan(self, rebuild=False):
@@ -171,6 +173,10 @@ class App:
             cand = hit["hits"][int(b.get("idx", 0))]
         except (TypeError, ValueError, IndexError):
             return {"ok": False, "error": "no such candidate"}
+        return {"ok": True, "status": self._write_lyrics(song, lrclib.to_lrc(cand, hit["dur"]))}
+
+    def _write_lyrics(self, song, text):
+        """Atomic write of a song's .lrc (the first previous version is kept as .lrc.bak), then refresh + reload."""
         target = library.lrc_for(song["path"]) or library.lrc_target(song["path"])
         bak = target.with_name(target.name + ".bak")
         if target.exists() and not bak.exists():   # keep what the user had, but only the first time
@@ -178,10 +184,49 @@ class App:
                 write_lrc(bak, target.read_text(errors="replace"))
             except OSError:
                 log.exception("could not back up %s", target)
-        write_lrc(target, lrclib.to_lrc(cand, hit["dur"]))
+        write_lrc(target, text)
         library.refresh(song["path"])
         self.engine.reload_lyrics(song["id"])
-        return {"ok": True, "status": library.lyrics_status(song["path"], song["kind"])}
+        return library.lyrics_status(song["path"], song["kind"])
+
+    # -------------------------------------------------------------- lyrics: speech recognition (optional)
+    def whisper_ready(self):
+        """Cached: is the speech-recognition venv installed? Re-checked at most every 30 s."""
+        ok, when = self._whisper
+        if time.time() - when > 30:
+            self._whisper = (ok, time.time())   # check in the background: a state poll never waits for it
+            threading.Thread(target=lambda: setattr(self, "_whisper", (whisper.available(self.cfg), time.time())),
+                             daemon=True).start()
+        return ok
+
+    def lyrics_time(self, b):
+        """Time (or transcribe) one song's lyrics from its audio, in the background; progress in app.timing."""
+        sid = _sid(b)
+        song = library.get(song_id=sid) if sid is not None else None
+        if not song:
+            return {"ok": False, "error": "notfound"}
+        if song["kind"] not in ("audio", "video"):
+            return {"ok": False, "error": "kind"}
+        if self.timing["running"]:
+            return {"ok": False, "error": "busy"}
+        if not whisper.available(self.cfg):
+            return {"ok": False, "error": "unavailable"}
+        lang = str(b.get("lang") or "auto")
+        self.timing = {"running": True, "id": song["id"], "error": "", "result": "", "share": 0.0, "status": ""}
+
+        def go():
+            try:
+                text, (what, share) = whisper.time_song(self.cfg, song, lang)
+                status = self._write_lyrics(song, text)
+                self.timing.update(result=what, share=round(share, 2), status=status)
+                log.info("speech recognition %s %s (%.0f%% of words heard)", what, song["path"], share * 100)
+            except Exception as e:
+                log.exception("speech recognition failed for %s", song["path"])
+                self.timing["error"] = str(e) or "failed"
+            finally:
+                self.timing["running"] = False
+        threading.Thread(target=go, daemon=True).start()
+        return {"ok": True}
 
     # -------------------------------------------------------------- inbox (downloads -> library)
     @staticmethod
@@ -261,6 +306,7 @@ class App:
             return {"ok": off is not None, "offset": off}
         elif name == "lyrics_search": return self.lyrics_search(b)
         elif name == "lyrics_save": return self.lyrics_save(b)
+        elif name == "lyrics_time": return self.lyrics_time(b)
         elif name == "inbox_import": return self.inbox_import(b)
         elif name == "fullscreen": return {"ok": self.fullscreen()}
         elif name == "display_closed": self.display_closing = time.time()
@@ -341,7 +387,8 @@ def handler(app):
                 if "d" in q:
                     app.display_last, app.display_closing = time.time(), 0.0
                 s = e.state()
-                s.update(scan=app.scan, cfg=app.public_cfg(), facets=library.facets() if "facets" in q else None)
+                s.update(scan=app.scan, cfg=app.public_cfg(), facets=library.facets() if "facets" in q else None,
+                         timing=app.timing, whisper=app.whisper_ready())
                 return self.json(s)
             if p == "/api/lyrics": return self.json(e.lyrics())
             if p == "/api/doctor": return self.json({"report": doctor.report(app.cfg, e)})
