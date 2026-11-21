@@ -63,7 +63,7 @@ Press **/** (or **Tab**) to open the song book on the right.
 | Mark | Meaning |
 |---|---|
 | ✓ | has timed lyrics |
-| amber warning | lyrics may be out of sync (see section 6) |
+| amber warning | lyrics may be out of sync: they run past the end of the song, stop before its halfway point, or have no timing (see section 6). A long instrumental ending alone is fine |
 | **No lyrics** | the song plays without words; press **L** to find some |
 | nothing | lyrics come from the file itself (MIDI, KAR, Clone Hero, CDG) |
 
@@ -150,8 +150,17 @@ Some songs simply aren't on lrclib. They still play, just without words.
 Put songs you own in a song folder (yours is `~/dev/nodaysidle/kuraoke-kami/songs`). The app checks its folders every
 ten seconds and adds new songs on its own; no button to press. New songs get the next free number in that folder.
 
-File names like `Artist - Title.mp3` give the artist and title. YouTube-style names such as
-`Calcutta - Milano (Official Video) [dQw4w9WgXcQ].mp3` are cleaned up when you import them (below).
+File names like `Artist - Title.mp3` give the artist and title. Downloaded names are cleaned up when you import them
+(below), for example:
+
+| Downloaded as | Becomes |
+|---|---|
+| `Calcutta - Milano (Official Video) [dQw4w9WgXcQ].mp3` | `Calcutta - Milano.mp3` |
+| `M83 'Midnight City' Official video [dX3k_QDnzHE].mp3` | `M83 - Midnight City.mp3` |
+| `Artist – Title.mp3`, `Artist \| Title.mp3`, `Artist "Title".mp3` | `Artist - Title.mp3` |
+| `Coma_Cose - CUORICINI.mp3` | `Coma Cose - Cuoricini.mp3` |
+
+If the name has no artist at all, the tags inside the file are tried.
 
 | Type | Files | Lyrics |
 |---|---|---|
@@ -197,11 +206,11 @@ The result lists each song's number and what happened with its lyrics:
 | Message | Meaning |
 |---|---|
 | `lyrics saved (Artist - Title)` | timed lyrics found |
-| `... (suspect)` | saved, but the timing probably belongs to another version; press **T** while singing |
+| `... (suspect)` | saved, but the lyrics run past the end of the file or stop before its halfway point, so they probably belong to another version; press **T** while singing |
 | `... (untimed)` | only plain lyrics exist; spread over the song, press **T** once |
 | `lyrics no match` | none found; try **L** in the app with a corrected name |
 | `lyrics service unavailable` | lrclib is busy; run `karaokelrc` later |
-| a `??` line | no artist in the name or tags; rename it `Artist - Title.mp3` and run again |
+| a `??` line | no artist in the name or tags (in the app: listed under "Skipped"); rename it `Artist - Title.mp3` and run again |
 
 If the app is open, it shows the new songs by itself.
 
